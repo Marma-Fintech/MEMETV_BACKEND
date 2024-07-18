@@ -1,0 +1,25 @@
+{
+  "name": "new-memetv-backend",
+  "version": "1.0.0",
+  "description": "new-memeTv-backend",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "paviesh",
+  "license": "ISC",
+  "dependencies": {
+    "celebrate": "^15.0.3",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "errors": "^0.3.0",
+    "express": "^4.19.2",
+    "helmet": "^7.1.0",
+    "joi": "^17.13.3",
+    "mongoose": "^8.5.1",
+    "morgan": "^1.10.0",
+    "node-telegram-bot-api": "^0.66.0",
+    "segments": "^1.0.1"
+  }
+}
