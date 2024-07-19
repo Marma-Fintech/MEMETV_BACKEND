@@ -1,19 +1,18 @@
 const express = require("express");
 const router = express.Router();
 const { celebrate, Joi, errors, Segments } = require("celebrate");
-const { login } = require("../controllers/userController");
+const { userWatchRewards } = require("../controllers/userWatchController");
 
 
 router.post(
-    "/login",
+    "/userWatchRewards",
     celebrate({
       [Segments.BODY]: Joi.object().keys({
-        name: Joi.string().required(),
-        refferedById: Joi.string().optional(),
         telegramId: Joi.string().required(),
+        userWatchSeconds: Joi.number().required(),
       }),
     }),
-    login
+    userWatchRewards
   );
 
 router.use(errors());
