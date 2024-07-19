@@ -33,7 +33,7 @@ const userSchema = mongoose.Schema(
     },
     totalRewards: {
       type: Number,
-      default: 500,
+      default: 0,
     },
     level: {
       type: Number,
