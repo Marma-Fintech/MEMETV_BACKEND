@@ -1,20 +1,5 @@
 const mongoose = require("mongoose");
 
-const streakSchema = mongoose.Schema({
-  day: {
-    type: Number,
-    default: 1,
-  },
-  lastLogin: {
-    type: Date,
-    default: null,
-  },
-  rewardsClaimed: {
-    type: Boolean,
-    default: false,
-  }
-});
-
 const userSchema = mongoose.Schema(
   {
     name: {
@@ -29,49 +14,42 @@ const userSchema = mongoose.Schema(
     },
     refferedById: {
       type: String,
-      default: ""
+      default: "",
     },
     gameCard1: {
       type: String,
     },
     gameCard2: {
-        type: String,
+      type: String,
     },
     gameCard3: {
-        type: String,
+      type: String,
     },
     gameCard4: {
-        type: String,
+      type: String,
     },
     gameCard5: {
-        type: String,
-    },
-    boosters: [
-        {
-            boosterType: {
-              type: "String",
-              default: "levelup"
-            },
-            validity: {
-                type: Date 
-            }
-          },  
-        ],
-    streak: {
-      type: streakSchema,
-      default: () => ({}),
+      type: String,
     },
     totalRewards: {
-        type: Number,
-      }
+      type: Number,
+      default: 0,
+    },
+    yourReferenceIds: [
+      {
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Users",
+          required: true
+        }
+      },
+    ],
   },
-
   {
-    timestamps: true
+    timestamps: true,
   }
 );
 
-const User = mongoose.model("Users", userSchema);
+const User = mongoose.model("User", userSchema);
 
 module.exports = User;
-

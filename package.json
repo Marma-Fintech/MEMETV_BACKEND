@@ -4,7 +4,8 @@
   "description": "new-memeTv-backend",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon index.js"
   },
   "author": "paviesh",
   "license": "ISC",
@@ -20,6 +21,7 @@
     "mongoose": "^8.5.1",
     "morgan": "^1.10.0",
     "node-telegram-bot-api": "^0.66.0",
+    "nodemon": "^3.1.4",
     "segments": "^1.0.1"
   }
 }
