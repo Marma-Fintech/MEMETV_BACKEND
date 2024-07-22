@@ -29,7 +29,7 @@ app.use(morgan(':method :url :status'));
 
 // Initialize Telegram Bot
 const token = process.env.TELEGRAM_TOKEN;
-const bot = new TelegramBot(`token`);
+const bot = new TelegramBot(token);
 
 // Handle '/start' command
 bot.onText(/\/start(?:\s+(\d+))?/, (msg, match) => {

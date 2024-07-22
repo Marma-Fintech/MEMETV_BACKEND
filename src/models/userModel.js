@@ -17,19 +17,19 @@ const userSchema = mongoose.Schema(
       default: "",
     },
     gameCard1: {
-      type: String,
+      type: Number,
     },
     gameCard2: {
-      type: String,
+      type: Number,
     },
     gameCard3: {
-      type: String,
+      type: Number,
     },
     gameCard4: {
-      type: String,
+      type: Number,
     },
     gameCard5: {
-      type: String,
+      type: Number,
     },
     totalRewards: {
       type: Number,
