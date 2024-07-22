@@ -33,19 +33,21 @@ const userSchema = mongoose.Schema(
     },
     totalRewards: {
       type: Number,
-      default: 0,
+      default: 500,
     },
     level: {
       type: Number,
-      default: 1
+      default: 1,
     },
+    boosters: [{ type: String }],
+    lastLogin: { type: Date }, // Track the last login time
     yourReferenceIds: [
       {
         userId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Users",
-          required: true
-        }
+          required: true,
+        },
       },
     ],
   },

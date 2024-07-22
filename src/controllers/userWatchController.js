@@ -1,7 +1,7 @@
 const User = require("../models/userModel");
 
 const levelUpBonuses = [
-  500, // Level 1 to Level 2
+  // 500, // Level 1 bonous, you reach 1000 its level2 you got level2 bonous points
   1000, // Level 2 to Level 3
   5000, // Level 3 to Level 4
   10000, // Level 4 to Level 5
@@ -181,4 +181,11 @@ const userWatchRewards = async (req, res, next) => {
 };
 
 
-module.exports = { userWatchRewards, levelDetails };
+const boosterDetails = async (req,res,next) => {
+  try {
+    
+  } catch (err) {
+    next(er)
+  }
+}
+module.exports = { userWatchRewards, levelDetails, boosterDetails };

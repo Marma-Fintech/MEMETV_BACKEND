@@ -12,7 +12,6 @@ const generateRefId = () => {
   return result;
 };
 
-
 const login = async (req, res, next) => {
   let { name, refferedById, telegramId } = req.body;
   try {
@@ -22,14 +21,21 @@ const login = async (req, res, next) => {
     const refId = generateRefId(); // You need to implement generateRefId() function
 
     // Generate game cards
-    const gameCard1 = Math.floor(Math.random() * 10000).toString();
-    const gameCard2 = Math.floor(Math.random() * 10000).toString();
-    const gameCard3 = Math.floor(Math.random() * 10000).toString();
-    const gameCard4 = Math.floor(Math.random() * 10000).toString();
-    const gameCard5 = Math.floor(Math.random() * 10000).toString();
+    const getRandomDigit = () => Math.floor(Math.random() * 10);
+
+    const gameCard1 = parseInt(`${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}`);
+    const gameCard2 = parseInt(`${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}`);
+    const gameCard3 = parseInt(`${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}`);
+    const gameCard4 = parseInt(`${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}`);
+    const gameCard5 = parseInt(`${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}`);
 
     // Check if user already exists
     let user = await User.findOne({ telegramId });
+
+    const currentDate = new Date();
+    const currentDay = currentDate.getUTCDate();
+    const currentMonth = currentDate.getUTCMonth();
+    const currentYear = currentDate.getUTCFullYear();
 
     if (!user) {
       // Initialize an array to hold reference user IDs
@@ -46,6 +52,8 @@ const login = async (req, res, next) => {
         gameCard3,
         gameCard4,
         gameCard5,
+        boosters: ["levelUp", "tap"], // Initialize boosters array with "levelUp" and "tap"
+        lastLogin: currentDate // Set the last login time to now
       });
 
       // Save the new user to the database
@@ -59,6 +67,9 @@ const login = async (req, res, next) => {
         if (referringUser) {
           referringUser.yourReferenceIds.push({ userId: user._id });
           referringUser.totalRewards += 5000; // Add 5000 points for referral
+
+          // Add "2x" to the referring user's boosters array
+          referringUser.boosters.push("2x");
 
           // Calculate additional milestone rewards if applicable
           const numberOfReferrals = referringUser.yourReferenceIds.length;
@@ -91,6 +102,19 @@ const login = async (req, res, next) => {
           console.error('Referring user not found');
         }
       }
+    } else {
+      // If the user already exists, add "levelUp" and "tap" to the boosters array if it's a new day
+      const lastLoginDate = new Date(user.lastLogin);
+      const lastLoginDay = lastLoginDate.getUTCDate();
+      const lastLoginMonth = lastLoginDate.getUTCMonth();
+      const lastLoginYear = lastLoginDate.getUTCFullYear();
+
+      if (currentYear > lastLoginYear || currentMonth > lastLoginMonth || currentDay > lastLoginDay) {
+        user.boosters.push("levelUp", "tap");
+      }
+
+      user.lastLogin = currentDate; // Update the last login time
+      await user.save();
     }
 
     res.status(201).json({
@@ -102,8 +126,9 @@ const login = async (req, res, next) => {
   }
 };
 
+module.exports = { login };
 
 
-module.exports = {
-  login,
-};
+module.exports = { login };
+
+
