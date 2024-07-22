@@ -41,6 +41,24 @@ const userSchema = mongoose.Schema(
     },
     boosters: [{ type: String }],
     lastLogin: { type: Date }, // Track the last login time
+    dailyRewards: [
+      {
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Users",
+        },
+        telegramId: {
+          type: String,
+        },
+        totalRewards: {
+          type: Number,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
     yourReferenceIds: [
       {
         userId: {

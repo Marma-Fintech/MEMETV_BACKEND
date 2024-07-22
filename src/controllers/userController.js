@@ -38,9 +38,6 @@ const login = async (req, res, next) => {
     const currentYear = currentDate.getUTCFullYear();
 
     if (!user) {
-      // Initialize an array to hold reference user IDs
-      let yourReferenceIds = [];
-
       // Create a new user with the generated refId and game cards
       user = new User({
         name,
@@ -53,7 +50,16 @@ const login = async (req, res, next) => {
         gameCard4,
         gameCard5,
         boosters: ["levelUp", "tap"], // Initialize boosters array with "levelUp" and "tap"
+        totalRewards: 500, // Initial reward for new user
         lastLogin: currentDate // Set the last login time to now
+      });
+
+      // Add initial reward to dailyRewards array
+      user.dailyRewards.push({
+        userId: user._id,
+        telegramId: user.telegramId,
+        totalRewards: 500,
+        createdAt: currentDate
       });
 
       // Save the new user to the database
@@ -67,6 +73,27 @@ const login = async (req, res, next) => {
         if (referringUser) {
           referringUser.yourReferenceIds.push({ userId: user._id });
           referringUser.totalRewards += 5000; // Add 5000 points for referral
+
+          // Add referral reward to the referring user's dailyRewards
+          const today = new Date();
+          today.setUTCHours(0, 0, 0, 0);
+
+          const dailyReward = referringUser.dailyRewards.find(dr => {
+            const rewardDate = new Date(dr.createdAt);
+            rewardDate.setUTCHours(0, 0, 0, 0);
+            return rewardDate.getTime() === today.getTime();
+          });
+
+          if (dailyReward) {
+            dailyReward.totalRewards += 5000; // Update the existing daily reward for today
+          } else {
+            referringUser.dailyRewards.push({
+              userId: referringUser._id,
+              telegramId: referringUser.telegramId,
+              totalRewards: 5000,
+              createdAt: currentDate
+            });
+          }
 
           // Add "2x" to the referring user's boosters array
           referringUser.boosters.push("2x");
@@ -97,6 +124,13 @@ const login = async (req, res, next) => {
           }
 
           referringUser.totalRewards += totalMilestoneReward;
+
+          if (totalMilestoneReward > 0) {
+            if (dailyReward) {
+              dailyReward.totalRewards += totalMilestoneReward; // Update the existing daily reward for today
+            } 
+          }
+
           await referringUser.save();
         } else {
           console.error('Referring user not found');
@@ -126,7 +160,8 @@ const login = async (req, res, next) => {
   }
 };
 
-module.exports = { login };
+
+
 
 
 module.exports = { login };
