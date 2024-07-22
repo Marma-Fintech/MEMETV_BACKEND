@@ -181,11 +181,30 @@ const userWatchRewards = async (req, res, next) => {
 };
 
 
-const boosterDetails = async (req,res,next) => {
+const boosterDetails = async (req, res, next) => {
   try {
-    
+    let { telegramId } = req.params;
+
+    // Trim leading and trailing spaces
+    telegramId = telegramId.trim();
+
+    // Find the user detail document for the given telegramId
+    const userDetail = await User.findOne({ telegramId: telegramId });
+
+    // Check if user detail was found
+    if (!userDetail) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Return the boosters array along with other relevant user details
+    res.status(200).json({
+      message: 'User details fetched successfully',
+      boosters: userDetail.boosters
+    });
   } catch (err) {
-    next(er)
+    next(err);
   }
-}
+};
+
+
 module.exports = { userWatchRewards, levelDetails, boosterDetails };
