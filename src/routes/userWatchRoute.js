@@ -13,6 +13,7 @@ router.post(
     [Segments.BODY]: Joi.object().keys({
       telegramId: Joi.string().required(),
       userWatchSeconds: Joi.number().required(),
+      boosterPoints: Joi.string().optional(),
     }),
   }),
   userWatchRewards

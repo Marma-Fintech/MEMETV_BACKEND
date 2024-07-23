@@ -91,7 +91,7 @@ const calculateLevelAndProgress = (totalRewards) => {
 
   const userWatchRewards = async (req, res, next) => {
     try {
-      const { telegramId, userWatchSeconds } = req.body;
+      const { telegramId, userWatchSeconds, boosterPoints = 0 } = req.body;
   
       // Find the user by telegramId
       const user = await User.findOne({ telegramId });
@@ -140,8 +140,9 @@ const calculateLevelAndProgress = (totalRewards) => {
         newRewards = remainingSeconds * level10RewardPerSecond;
       }
   
-      // Add the new rewards to total rewards
-      user.totalRewards += newRewards;
+      // Include boosterPoints in totalRewards
+      const parsedBoosterPoints = parseFloat(boosterPoints);
+      user.totalRewards += newRewards + parsedBoosterPoints;
   
       // Determine the new level
       let newLevel = 1;
@@ -173,8 +174,8 @@ const calculateLevelAndProgress = (totalRewards) => {
       // Get current date in YYYY-MM-DD format
       const currentDate = new Date().toISOString().split("T")[0];
   
-      // Calculate total daily rewards including level-up bonuses
-      let dailyRewardAmount = newRewards + levelUpBonus;
+      // Calculate total daily rewards including level-up bonuses and boosterPoints
+      let dailyRewardAmount = newRewards + levelUpBonus + parsedBoosterPoints;
   
       // Check if there's already an entry for today in dailyRewards
       let dailyReward = user.dailyRewards.find(
@@ -211,7 +212,7 @@ const calculateLevelAndProgress = (totalRewards) => {
   };
   
 
-
+  
 const boosterDetails = async (req, res, next) => {
   try {
     let { telegramId } = req.params;
