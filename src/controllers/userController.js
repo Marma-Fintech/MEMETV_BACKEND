@@ -21,13 +21,15 @@ const login = async (req, res, next) => {
     const refId = generateRefId(); // You need to implement generateRefId() function
 
     // Generate game cards
-    const getRandomDigit = () => Math.floor(Math.random() * 10);
+    const generateRandomNumber = () => {
+      return Math.floor(10000 + Math.random() * 90000); // Generates a random 5-digit number
+    };
 
-    const gameCard1 = parseInt(`${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}`);
-    const gameCard2 = parseInt(`${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}`);
-    const gameCard3 = parseInt(`${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}`);
-    const gameCard4 = parseInt(`${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}`);
-    const gameCard5 = parseInt(`${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}`);
+    const gameCard1 = generateRandomNumber();
+    const gameCard2 = generateRandomNumber();
+    const gameCard3 = generateRandomNumber();
+    const gameCard4 = generateRandomNumber();
+    const gameCard5 = generateRandomNumber();
 
     // Check if user already exists
     let user = await User.findOne({ telegramId });
@@ -163,11 +165,6 @@ const login = async (req, res, next) => {
     next(err);
   }
 };
-
-
-
-
-
 
 module.exports = { login };
 
