@@ -88,97 +88,128 @@ const calculateLevelAndProgress = (totalRewards) => {
     }
   };
 
-const userWatchRewards = async (req, res, next) => {
-  try {
-    const { telegramId, userWatchSeconds } = req.body;
 
-    // Find the user by telegramId
-    const user = await User.findOne({ telegramId });
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    let remainingSeconds = userWatchSeconds;
-    let newRewards = 0;
-    let currentTotalRewards = user.totalRewards;
-    let previousLevel = user.level;
-
-    // Calculate rewards based on user level
-    if (user.level < 10) {
-      while (remainingSeconds > 0) {
-        // Determine the current reward rate
-        let rewardPerSecond;
-        for (let i = thresholds.length - 1; i >= 0; i--) {
-          if (currentTotalRewards >= thresholds[i].limit) {
-            rewardPerSecond = thresholds[i].rewardPerSecond;
-            break;
+  const userWatchRewards = async (req, res, next) => {
+    try {
+      const { telegramId, userWatchSeconds } = req.body;
+  
+      // Find the user by telegramId
+      const user = await User.findOne({ telegramId });
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+  
+      let remainingSeconds = userWatchSeconds;
+      let newRewards = 0;
+      let currentTotalRewards = user.totalRewards;
+      let previousLevel = user.level;
+  
+      // Calculate rewards based on user level
+      if (user.level < 10) {
+        while (remainingSeconds > 0) {
+          // Determine the current reward rate
+          let rewardPerSecond;
+          for (let i = thresholds.length - 1; i >= 0; i--) {
+            if (currentTotalRewards >= thresholds[i].limit) {
+              rewardPerSecond = thresholds[i].rewardPerSecond;
+              break;
+            }
+          }
+  
+          // Determine how many seconds can be applied at the current rate
+          let nextThreshold = thresholds.find(
+            (t) => t.limit > currentTotalRewards
+          );
+          let secondsAtThisRate = nextThreshold
+            ? Math.min(
+                remainingSeconds,
+                nextThreshold.limit - currentTotalRewards
+              )
+            : remainingSeconds;
+  
+          // Add the rewards for these seconds
+          newRewards += secondsAtThisRate * rewardPerSecond;
+          currentTotalRewards += secondsAtThisRate;
+          remainingSeconds -= secondsAtThisRate;
+        }
+      } else {
+        // If the user is already at level 10, add rewards at level 10 rate
+        const level10RewardPerSecond = thresholds.find(
+          (t) => t.level === 10
+        ).rewardPerSecond;
+        newRewards = remainingSeconds * level10RewardPerSecond;
+      }
+  
+      // Add the new rewards to total rewards
+      user.totalRewards += newRewards;
+  
+      // Determine the new level
+      let newLevel = 1;
+      for (let i = thresholds.length - 1; i >= 0; i--) {
+        if (user.totalRewards >= thresholds[i].limit) {
+          newLevel = thresholds[i].level;
+          break;
+        }
+      }
+  
+      // Store the level-up bonuses separately
+      let levelUpBonus = 0;
+  
+      // Apply level-up bonus if user levels up
+      if (newLevel > previousLevel) {
+        // Apply bonus for all level-ups
+        for (let level = previousLevel; level < newLevel; level++) {
+          let bonusIndex = level - 1; // Bonus for previous level
+          if (bonusIndex >= 0 && bonusIndex < levelUpBonuses.length) {
+            levelUpBonus += levelUpBonuses[bonusIndex];
           }
         }
-
-        // Determine how many seconds can be applied at the current rate
-        let nextThreshold = thresholds.find(
-          (t) => t.limit > currentTotalRewards
-        );
-        let secondsAtThisRate = nextThreshold
-          ? Math.min(
-              remainingSeconds,
-              nextThreshold.limit - currentTotalRewards
-            )
-          : remainingSeconds;
-
-        // Add the rewards for these seconds
-        newRewards += secondsAtThisRate * rewardPerSecond;
-        currentTotalRewards += secondsAtThisRate;
-        remainingSeconds -= secondsAtThisRate;
       }
-    } else {
-      // If the user is already at level 10, add rewards at level 10 rate
-      const level10RewardPerSecond = thresholds.find(
-        (t) => t.level === 10
-      ).rewardPerSecond;
-      newRewards = remainingSeconds * level10RewardPerSecond;
-    }
-
-    // Add the new rewards to total rewards
-    user.totalRewards += newRewards;
-
-    // Determine the new level
-    let newLevel = 1;
-    for (let i = thresholds.length - 1; i >= 0; i--) {
-      if (user.totalRewards >= thresholds[i].limit) {
-        newLevel = thresholds[i].level;
-        break;
+  
+      // Update user level and total rewards with the level-up bonus
+      user.level = newLevel;
+      user.totalRewards += levelUpBonus;
+  
+      // Get current date in YYYY-MM-DD format
+      const currentDate = new Date().toISOString().split("T")[0];
+  
+      // Calculate total daily rewards including level-up bonuses
+      let dailyRewardAmount = newRewards + levelUpBonus;
+  
+      // Check if there's already an entry for today in dailyRewards
+      let dailyReward = user.dailyRewards.find(
+        (reward) => reward.createdAt.toISOString().split("T")[0] === currentDate
+      );
+  
+      if (dailyReward) {
+        // Update the existing entry for today
+        dailyReward.totalRewards += dailyRewardAmount;
+      } else {
+        // Create a new entry for today
+        user.dailyRewards.push({
+          userId: user._id,
+          telegramId: user.telegramId,
+          totalRewards: dailyRewardAmount,
+          createdAt: new Date(),
+        });
       }
+  
+      // Save the updated user
+      await user.save();
+  
+      res.status(200).json({
+        message: "Rewards and level updated successfully",
+        name: user.name,
+        telegramId: user.telegramId,
+        totalRewards: user.totalRewards,
+        level: user.level,
+        dailyRewards: user.dailyRewards,
+      });
+    } catch (err) {
+      next(err);
     }
-
-    // Apply level-up bonus if user levels up
-    if (newLevel > previousLevel) {
-      // Apply bonus for all level-ups
-      for (let level = previousLevel; level < newLevel; level++) {
-        let bonusIndex = level - 1; // Bonus for previous level
-        if (bonusIndex >= 0 && bonusIndex < levelUpBonuses.length) {
-          user.totalRewards += levelUpBonuses[bonusIndex];
-        }
-      }
-    }
-
-    // Update user level
-    user.level = newLevel;
-
-    // Save the updated user
-    await user.save();
-
-    res.status(200).json({
-      message: "Rewards and level updated successfully",
-      name: user.name,
-      telegramId: user.telegramId,
-      totalRewards: user.totalRewards,
-      level: user.level,
-    });
-  } catch (err) {
-    next(err);
-  }
-};
+  };
+  
 
 
 const boosterDetails = async (req, res, next) => {
