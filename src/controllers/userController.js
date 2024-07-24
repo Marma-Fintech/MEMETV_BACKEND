@@ -48,6 +48,7 @@ const login = async (req, res, next) => {
         refferedById, // This will be null if referring user was not found
         boosters: ["levelUp", "tap"], // Initialize boosters array with "levelUp" and "tap"
         totalRewards: 500, // Initial reward for new user
+        referRewards: 0, // Initialize referral rewards to 0
         lastLogin: currentDate // Set the last login time to now
       });
 
@@ -66,6 +67,7 @@ const login = async (req, res, next) => {
         // If referring user found, add the new user's userId to their yourReferenceIds
         referringUser.yourReferenceIds.push({ userId: user._id });
         referringUser.totalRewards += 5000; // Add 5000 points for referral
+        referringUser.referRewards += 5000; // Add 5000 points to referRewards
 
         // Add referral reward to the referring user's dailyRewards
         const today = new Date();
@@ -117,6 +119,7 @@ const login = async (req, res, next) => {
         }
 
         referringUser.totalRewards += totalMilestoneReward;
+        referringUser.referRewards += totalMilestoneReward; // Add milestone rewards to referRewards
 
         if (totalMilestoneReward > 0) {
           if (dailyReward) {
@@ -149,6 +152,7 @@ const login = async (req, res, next) => {
     next(err);
   }
 };
+
 
 module.exports = { login };
 

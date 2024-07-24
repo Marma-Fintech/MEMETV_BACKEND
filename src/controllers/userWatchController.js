@@ -195,6 +195,10 @@ const calculateLevelAndProgress = (totalRewards) => {
         });
       }
   
+      // Update watchRewards and levelUpRewards fields
+      user.watchRewards = (user.watchRewards || 0) + newRewards + parsedBoosterPoints;
+      user.levelUpRewards = (user.levelUpRewards || 0) + levelUpBonus;
+  
       // Save the updated user
       await user.save();
   
@@ -205,6 +209,8 @@ const calculateLevelAndProgress = (totalRewards) => {
         totalRewards: user.totalRewards,
         level: user.level,
         dailyRewards: user.dailyRewards,
+        watchRewards: user.watchRewards,
+        levelUpRewards: user.levelUpRewards,
       });
     } catch (err) {
       next(err);

@@ -24,6 +24,18 @@ const userSchema = mongoose.Schema(
       type: Number,
       default: 1,
     },
+    watchRewards: {
+      type: Number,
+      default: 0,
+    },
+    referRewards: {
+      type: Number,
+      default: 0,
+    },
+    levelUpRewards: {
+      type: Number,
+      default: 500,
+    },
     boosters: [{ type: String }],
     lastLogin: { type: Date }, // Track the last login time
     dailyRewards: [
