@@ -20,17 +20,6 @@ const login = async (req, res, next) => {
     // Generate refId for new user
     const refId = generateRefId(); // You need to implement generateRefId() function
 
-    // Generate game cards
-    const generateRandomNumber = () => {
-      return Math.floor(10000 + Math.random() * 90000); // Generates a random 5-digit number
-    };
-
-    const gameCard1 = generateRandomNumber();
-    const gameCard2 = generateRandomNumber();
-    const gameCard3 = generateRandomNumber();
-    const gameCard4 = generateRandomNumber();
-    const gameCard5 = generateRandomNumber();
-
     // Check if user already exists
     let user = await User.findOne({ telegramId });
 
@@ -57,11 +46,6 @@ const login = async (req, res, next) => {
         telegramId,
         refId,
         refferedById, // This will be null if referring user was not found
-        gameCard1,
-        gameCard2,
-        gameCard3,
-        gameCard4,
-        gameCard5,
         boosters: ["levelUp", "tap"], // Initialize boosters array with "levelUp" and "tap"
         totalRewards: 500, // Initial reward for new user
         lastLogin: currentDate // Set the last login time to now

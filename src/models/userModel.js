@@ -16,21 +16,6 @@ const userSchema = mongoose.Schema(
       type: String,
       default: "",
     },
-    gameCard1: {
-      type: Number,
-    },
-    gameCard2: {
-      type: Number,
-    },
-    gameCard3: {
-      type: Number,
-    },
-    gameCard4: {
-      type: Number,
-    },
-    gameCard5: {
-      type: Number,
-    },
     totalRewards: {
       type: Number,
       default: 500,
