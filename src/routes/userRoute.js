@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { celebrate, Joi, errors, Segments } = require("celebrate");
-const { login,userDetails } = require("../controllers/userController");
+const { login,userDetails,userGameRewards } = require("../controllers/userController");
 
 
 router.post(
@@ -24,6 +24,17 @@ router.post(
       }),
     }),
     userDetails
+  );
+
+  router.post("/userGameRewards",
+  celebrate({
+    [Segments.BODY]: Joi.object().keys({
+      telegramId: Joi.string().required(),
+      gamePoints: Joi.string().required(),
+      boosters: Joi.array().items(Joi.string()).optional(),
+     
+    }),
+  }), userGameRewards
   );
 
 router.use(errors());

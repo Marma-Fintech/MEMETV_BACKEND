@@ -79,7 +79,7 @@ const login = async (req, res, next) => {
 
       if (!referringUser) {
         refferedById = ""; // Set to null if referring user not found
-        console.error('Referring user not found');
+        console.error("Referring user not found");
       }
     }
 
@@ -100,7 +100,7 @@ const login = async (req, res, next) => {
         userId: user._id,
         telegramId: user.telegramId,
         totalRewards: 500,
-        createdAt: currentDate
+        createdAt: currentDate,
       });
 
       await user.save();
@@ -113,7 +113,7 @@ const login = async (req, res, next) => {
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0);
 
-        const dailyReward = referringUser.dailyRewards.find(dr => {
+        const dailyReward = referringUser.dailyRewards.find((dr) => {
           const rewardDate = new Date(dr.createdAt);
           rewardDate.setUTCHours(0, 0, 0, 0);
           return rewardDate.getTime() === today.getTime();
@@ -126,7 +126,7 @@ const login = async (req, res, next) => {
             userId: referringUser._id,
             telegramId: referringUser.telegramId,
             totalRewards: 5000,
-            createdAt: currentDate
+            createdAt: currentDate,
           });
         }
 
@@ -174,7 +174,11 @@ const login = async (req, res, next) => {
       const lastLoginMonth = lastLoginDate.getUTCMonth();
       const lastLoginYear = lastLoginDate.getUTCFullYear();
 
-      if (currentYear > lastLoginYear || currentMonth > lastLoginMonth || currentDay > lastLoginDay) {
+      if (
+        currentYear > lastLoginYear ||
+        currentMonth > lastLoginMonth ||
+        currentDay > lastLoginDay
+      ) {
         user.boosters.push("levelUp", "tap");
       }
 
@@ -205,19 +209,57 @@ const userDetails = async (req, res, next) => {
 
     // Check if user detail was found
     if (!userDetail) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: "User not found" });
     }
 
     // Return the user details in the response
     return res.status(200).json(userDetail);
   } catch (error) {
     // Handle any errors that occur
-    return res.status(500).json({ message: 'An error occurred', error: error.message });
+    return res
+      .status(500)
+      .json({ message: "An error occurred", error: error.message });
+  }
+};
+
+const userGameRewards = async (req, res, next) => {
+  try {
+    const { telegramId, boosters, gamePoints } = req.body;
+
+    // Find the user by telegramId
+    const user = await User.findOne({ telegramId });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Push new boosters into the existing boosters array
+    if (boosters && boosters.length > 0) {
+      user.boosters.push(...boosters);
+    }
+
+    // Ensure gamePoints is a number
+    const pointsToAdd = Number(gamePoints) || 0;
+
+    // Add gamePoints to totalRewards and gameRewards
+    if (pointsToAdd > 0) {
+      user.totalRewards += pointsToAdd;
+      user.gameRewards += pointsToAdd;
+    }
+
+    // Update the user's level and levelUpRewards based on the new totalRewards
+    updateLevel(user);
+
+    // Save the updated user document
+    await user.save();
+
+    return res
+      .status(200)
+      .json({ message: "Boosters and gamePoints added successfully", user });
+  } catch (err) {
+    next(err);
   }
 };
 
 
-
-module.exports = { login, userDetails };
-
-
+module.exports = { login, userDetails, userGameRewards };
