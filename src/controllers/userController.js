@@ -94,7 +94,6 @@ const login = async (req, res, next) => {
         referRewards: 0,
         lastLogin: currentDate,
         level: 1,
-        levelUpRewards: 0
       });
 
       user.dailyRewards.push({
