@@ -30,12 +30,18 @@ router.post(
   celebrate({
     [Segments.BODY]: Joi.object().keys({
       telegramId: Joi.string().required(),
-      gamePoints: Joi.string().required(),
+      gamePoints: Joi.string().optional(),
       boosters: Joi.array().items(Joi.string()).optional(),
      
     }),
   }), userGameRewards
   );
+
+router.post("/purchaseGameCards", celebrate({
+  [Segments.BODY]: Joi.object().keys({
+    telegramId: Joi.string().required(),
+  }),
+}))
 
 router.use(errors());
 
