@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { celebrate, Joi, errors, Segments } = require("celebrate");
-const { login } = require("../controllers/userController");
+const { login,userDetails } = require("../controllers/userController");
 
 
 router.post(
@@ -14,6 +14,16 @@ router.post(
       }),
     }),
     login
+  );
+
+  router.get(
+    "/userDetails/:telegramId",
+    celebrate({
+      [Segments.PARAMS]: Joi.object().keys({
+        telegramId: Joi.string().required(),
+      }),
+    }),
+    userDetails
   );
 
 router.use(errors());

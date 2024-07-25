@@ -193,8 +193,31 @@ const login = async (req, res, next) => {
   }
 };
 
+const userDetails = async (req, res, next) => {
+  try {
+    let { telegramId } = req.params;
+
+    // Trim leading and trailing spaces
+    telegramId = telegramId.trim();
+
+    // Find the user detail document for the given telegramId
+    const userDetail = await User.findOne({ telegramId: telegramId });
+
+    // Check if user detail was found
+    if (!userDetail) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Return the user details in the response
+    return res.status(200).json(userDetail);
+  } catch (error) {
+    // Handle any errors that occur
+    return res.status(500).json({ message: 'An error occurred', error: error.message });
+  }
+};
 
 
-module.exports = { login };
+
+module.exports = { login, userDetails };
 
 

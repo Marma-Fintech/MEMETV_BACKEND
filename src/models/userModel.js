@@ -36,6 +36,10 @@ const userSchema = mongoose.Schema(
       type: Number,
       default: 500,
     },
+    gameRewards: {
+      type: Number,
+      default: 0,
+    },
     boosters: [{ type: String }],
     lastLogin: { type: Date }, // Track the last login time
     dailyRewards: [

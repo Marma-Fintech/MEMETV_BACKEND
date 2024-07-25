@@ -83,8 +83,7 @@ const levelDetails = async (req, res, next) => {
 };
 
 
-
-  const userWatchRewards = async (req, res, next) => {
+const userWatchRewards = async (req, res, next) => {
     try {
       const { telegramId, userWatchSeconds, boosterPoints = 0 } = req.body;
   
@@ -212,8 +211,6 @@ const levelDetails = async (req, res, next) => {
     }
   };
   
-
-  
 const boosterDetails = async (req, res, next) => {
   try {
     let { telegramId } = req.params;
@@ -239,5 +236,38 @@ const boosterDetails = async (req, res, next) => {
   }
 };
 
+const userGameRewards = async (req, res, next) => {
+  try {
+    const { telegramId, boosters, gamePoints } = req.body;
 
-module.exports = { userWatchRewards, levelDetails, boosterDetails };
+    // Find the user by telegramId
+    const user = await User.findOne({ telegramId });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Push new boosters into the existing boosters array
+    if (boosters && boosters.length > 0) {
+      user.boosters.push(...boosters);
+    }
+
+    // Ensure gamePoints is a number
+    const pointsToAdd = Number(gamePoints) || 0;
+
+    // Add gamePoints to totalRewards and gameRewards
+    if (pointsToAdd > 0) {
+      user.totalRewards += pointsToAdd;
+      user.gameRewards += pointsToAdd;
+    }
+
+    // Save the updated user document
+    await user.save();
+
+    return res.status(200).json({ message: "Boosters and gamePoints added successfully", user });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { userWatchRewards, levelDetails, boosterDetails,userGameRewards };
