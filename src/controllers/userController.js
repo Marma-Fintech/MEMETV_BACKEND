@@ -12,15 +12,60 @@ const generateRefId = () => {
   return result;
 };
 
+const levelUpBonuses = [
+  1000, // Level 2 to Level 3
+  5000, // Level 3 to Level 4
+  10000, // Level 4 to Level 5
+  20000, // Level 5 to Level 6
+  50000, // Level 6 to Level 7
+  100000, // Level 7 to Level 8
+  250000, // Level 8 to Level 9
+  500000, // Level 9 to Level 10
+  1000000, // Level 10 and above
+];
+
+const thresholds = [
+  { limit: 500, level: 1 },
+  { limit: 1000, level: 2 },
+  { limit: 10000, level: 3 },
+  { limit: 50000, level: 4 },
+  { limit: 100000, level: 5 },
+  { limit: 250000, level: 6 },
+  { limit: 500000, level: 7 },
+  { limit: 1000000, level: 8 },
+  { limit: 5000000, level: 9 },
+  { limit: 10000000, level: 10 },
+];
+
+const updateLevel = (user) => {
+  let currentLevel = user.level || 1;
+  let newLevel = currentLevel;
+
+  for (const threshold of thresholds) {
+    if (user.totalRewards >= threshold.limit) {
+      newLevel = threshold.level;
+    } else {
+      break;
+    }
+  }
+
+  // If the level has increased, apply level-up bonuses
+  if (newLevel > currentLevel) {
+    for (let i = currentLevel; i < newLevel; i++) {
+      user.totalRewards += levelUpBonuses[i - 1]; // Apply the bonus for the new level
+      user.levelUpRewards += levelUpBonuses[i - 1]; // Add to levelUpRewards
+    }
+    user.level = newLevel;
+  }
+};
+
 const login = async (req, res, next) => {
   let { name, refferedById, telegramId } = req.body;
   try {
     name = name.trim();
 
-    // Generate refId for new user
-    const refId = generateRefId(); // You need to implement generateRefId() function
+    const refId = generateRefId(); // Implement this function to generate a refId
 
-    // Check if user already exists
     let user = await User.findOne({ telegramId });
 
     const currentDate = new Date();
@@ -28,31 +73,30 @@ const login = async (req, res, next) => {
     const currentMonth = currentDate.getUTCMonth();
     const currentYear = currentDate.getUTCFullYear();
 
-    // Check if there's a refferedById and find the referring user
     let referringUser = null;
     if (refferedById) {
       referringUser = await User.findOne({ refId: refferedById });
 
       if (!referringUser) {
-        refferedById = ""; // Set refferedById to null if referring user not found
+        refferedById = ""; // Set to null if referring user not found
         console.error('Referring user not found');
       }
     }
 
     if (!user) {
-      // Create a new user with the generated refId and game cards
       user = new User({
         name,
         telegramId,
         refId,
-        refferedById, // This will be null if referring user was not found
-        boosters: ["levelUp", "tap"], // Initialize boosters array with "levelUp" and "tap"
-        totalRewards: 500, // Initial reward for new user
-        referRewards: 0, // Initialize referral rewards to 0
-        lastLogin: currentDate // Set the last login time to now
+        refferedById,
+        boosters: ["levelUp", "tap"],
+        totalRewards: 500,
+        referRewards: 0,
+        lastLogin: currentDate,
+        level: 1,
+        levelUpRewards: 0
       });
 
-      // Add initial reward to dailyRewards array
       user.dailyRewards.push({
         userId: user._id,
         telegramId: user.telegramId,
@@ -60,16 +104,13 @@ const login = async (req, res, next) => {
         createdAt: currentDate
       });
 
-      // Save the new user to the database
       await user.save();
 
       if (referringUser) {
-        // If referring user found, add the new user's userId to their yourReferenceIds
         referringUser.yourReferenceIds.push({ userId: user._id });
-        referringUser.totalRewards += 5000; // Add 5000 points for referral
-        referringUser.referRewards += 5000; // Add 5000 points to referRewards
+        referringUser.totalRewards += 5000;
+        referringUser.referRewards += 5000;
 
-        // Add referral reward to the referring user's dailyRewards
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0);
 
@@ -80,7 +121,7 @@ const login = async (req, res, next) => {
         });
 
         if (dailyReward) {
-          dailyReward.totalRewards += 5000; // Update the existing daily reward for today
+          dailyReward.totalRewards += 5000;
         } else {
           referringUser.dailyRewards.push({
             userId: referringUser._id,
@@ -90,10 +131,8 @@ const login = async (req, res, next) => {
           });
         }
 
-        // Add "2x" to the referring user's boosters array
         referringUser.boosters.push("2x");
 
-        // Calculate additional milestone rewards if applicable
         const numberOfReferrals = referringUser.yourReferenceIds.length;
         const milestones = [
           { referrals: 3, reward: 10000 },
@@ -110,7 +149,6 @@ const login = async (req, res, next) => {
           { referrals: 100, reward: 333333 },
         ];
 
-        // Add milestone rewards only once when milestones are reached
         let totalMilestoneReward = 0;
         for (const milestone of milestones) {
           if (numberOfReferrals === milestone.referrals) {
@@ -119,18 +157,19 @@ const login = async (req, res, next) => {
         }
 
         referringUser.totalRewards += totalMilestoneReward;
-        referringUser.referRewards += totalMilestoneReward; // Add milestone rewards to referRewards
+        referringUser.referRewards += totalMilestoneReward;
 
         if (totalMilestoneReward > 0) {
           if (dailyReward) {
-            dailyReward.totalRewards += totalMilestoneReward; // Update the existing daily reward for today
+            dailyReward.totalRewards += totalMilestoneReward;
           }
         }
+
+        updateLevel(referringUser);
 
         await referringUser.save();
       }
     } else {
-      // If the user already exists, add "levelUp" and "tap" to the boosters array if it's a new day
       const lastLoginDate = new Date(user.lastLogin);
       const lastLoginDay = lastLoginDate.getUTCDate();
       const lastLoginMonth = lastLoginDate.getUTCMonth();
@@ -140,9 +179,11 @@ const login = async (req, res, next) => {
         user.boosters.push("levelUp", "tap");
       }
 
-      user.lastLogin = currentDate; // Update the last login time
+      user.lastLogin = currentDate;
       await user.save();
     }
+
+    updateLevel(user);
 
     res.status(201).json({
       message: `User logged in successfully`,
@@ -152,6 +193,7 @@ const login = async (req, res, next) => {
     next(err);
   }
 };
+
 
 
 module.exports = { login };
