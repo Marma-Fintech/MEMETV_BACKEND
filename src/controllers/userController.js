@@ -261,5 +261,36 @@ const userGameRewards = async (req, res, next) => {
   }
 };
 
+const purchaseGameCards = async (req, res, next) => {
+  try {
+    const { telegramId, gamePoints } = req.body;
 
-module.exports = { login, userDetails, userGameRewards };
+    // Find the user by telegramId
+    const user = await User.findOne({ telegramId });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Ensure gamePoints is a number
+    const pointsToDeduct = Number(gamePoints) || 0;
+
+    // Check if the user has enough points
+    if (user.totalRewards >= pointsToDeduct && user.gameRewards >= pointsToDeduct) {
+      // Deduct points from totalRewards and gameRewards
+      user.totalRewards -= pointsToDeduct;
+      user.gameRewards -= pointsToDeduct;
+
+      // Save the updated user document
+      await user.save();
+
+      return res.status(200).json({ message: "Game cards purchased successfully", user });
+    } else {
+      return res.status(400).json({ message: "Not enough points available" });
+    }
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { login, userDetails, userGameRewards, purchaseGameCards };

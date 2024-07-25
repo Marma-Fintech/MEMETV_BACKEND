@@ -1,47 +1,57 @@
 const express = require("express");
 const router = express.Router();
 const { celebrate, Joi, errors, Segments } = require("celebrate");
-const { login,userDetails,userGameRewards } = require("../controllers/userController");
-
+const {
+  login,
+  userDetails,
+  userGameRewards,
+  purchaseGameCards,
+} = require("../controllers/userController");
 
 router.post(
-    "/login",
-    celebrate({
-      [Segments.BODY]: Joi.object().keys({
-        name: Joi.string().required(),
-        refferedById: Joi.string().optional(),
-        telegramId: Joi.string().required(),
-      }),
+  "/login",
+  celebrate({
+    [Segments.BODY]: Joi.object().keys({
+      name: Joi.string().required(),
+      refferedById: Joi.string().optional(),
+      telegramId: Joi.string().required(),
     }),
-    login
-  );
+  }),
+  login
+);
 
-  router.get(
-    "/userDetails/:telegramId",
-    celebrate({
-      [Segments.PARAMS]: Joi.object().keys({
-        telegramId: Joi.string().required(),
-      }),
+router.get(
+  "/userDetails/:telegramId",
+  celebrate({
+    [Segments.PARAMS]: Joi.object().keys({
+      telegramId: Joi.string().required(),
     }),
-    userDetails
-  );
+  }),
+  userDetails
+);
 
-  router.post("/userGameRewards",
+router.post(
+  "/userGameRewards",
   celebrate({
     [Segments.BODY]: Joi.object().keys({
       telegramId: Joi.string().required(),
       gamePoints: Joi.string().optional(),
       boosters: Joi.array().items(Joi.string()).optional(),
-     
     }),
-  }), userGameRewards
-  );
-
-router.post("/purchaseGameCards", celebrate({
-  [Segments.BODY]: Joi.object().keys({
-    telegramId: Joi.string().required(),
   }),
-}))
+  userGameRewards
+);
+
+router.post(
+  "/purchaseGameCards",
+  celebrate({
+    [Segments.BODY]: Joi.object().keys({
+      telegramId: Joi.string().required(),
+      gamePoints: Joi.string().required(),
+    }),
+  }),
+  purchaseGameCards
+);
 
 router.use(errors());
 
