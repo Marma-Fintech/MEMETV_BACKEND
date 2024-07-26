@@ -5,6 +5,7 @@ const {
   userWatchRewards,
   levelDetails,
   boosterDetails,
+  purchaseBooster,
 } = require("../controllers/userWatchController");
 
 router.post(
@@ -39,8 +40,17 @@ router.get(
   boosterDetails
 );
 
-
-
+router.post(
+  "/purchaseBooster",
+  celebrate({
+    [Segments.BODY]: Joi.object().keys({
+      telegramId: Joi.string().required(),
+      boosterPoints: Joi.string().required(),
+      booster: Joi.string().required(),
+    }),
+  }),
+  purchaseBooster
+);
 
 router.use(errors());
 

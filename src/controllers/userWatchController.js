@@ -236,6 +236,39 @@ const boosterDetails = async (req, res, next) => {
   }
 };
 
+const purchaseBooster = async (req, res, next) => {
+  try {
+    const { telegramId, boosterPoints, booster } = req.body;
+
+    // Find the user by telegramId
+    const user = await User.findOne({ telegramId });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if the user has enough boosterPoints available in both totalRewards and watchRewards
+    if (user.totalRewards < boosterPoints || user.watchRewards < boosterPoints) {
+      return res.status(400).json({ message: "Not enough purchase points available" });
+    }
+
+    // Deduct the boosterPoints from totalRewards and watchRewards
+    user.totalRewards -= boosterPoints;
+    user.watchRewards -= boosterPoints;
+
+    // Push the booster into the boosters array
+    user.boosters.push(booster);
+
+    // Save the updated user
+    await user.save();
+
+    res.status(200).json({ message: "Booster purchased successfully" });
+  } catch (err) {
+    next(err);
+  }
+};
 
 
-module.exports = { userWatchRewards, levelDetails, boosterDetails };
+
+
+module.exports = { userWatchRewards, levelDetails, boosterDetails,purchaseBooster };
