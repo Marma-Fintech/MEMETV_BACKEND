@@ -6,6 +6,7 @@ const {
   levelDetails,
   boosterDetails,
   purchaseBooster,
+  stakingRewards
 } = require("../controllers/userWatchController");
 
 router.post(
@@ -50,6 +51,15 @@ router.post(
     }),
   }),
   purchaseBooster
+);
+
+router.post("/stakingRewards",
+celebrate({
+  [Segments.BODY]: Joi.object().keys({
+    stakingId: Joi.string().required(),
+  }),
+}),
+stakingRewards
 );
 
 router.use(errors());

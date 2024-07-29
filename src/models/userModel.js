@@ -40,6 +40,10 @@ const userSchema = mongoose.Schema(
       type: Number,
       default: 0,
     },
+    stakingRewards:{
+      type: Number,
+      default: 0,
+    },
     boosters: [{ type: String }],
     lastLogin: { type: Date }, // Track the last login time
     dailyRewards: [
@@ -53,6 +57,10 @@ const userSchema = mongoose.Schema(
         },
         totalRewards: {
           type: Number,
+        },
+        userStaking: {
+          type: Boolean,
+          default: false
         },
         createdAt: {
           type: Date,
@@ -69,6 +77,18 @@ const userSchema = mongoose.Schema(
         },
       },
     ],
+    staking: [
+      {
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Users",
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ]
   },
   {
     timestamps: true,

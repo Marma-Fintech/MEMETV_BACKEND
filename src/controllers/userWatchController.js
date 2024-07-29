@@ -1,4 +1,6 @@
 const User = require("../models/userModel");
+const mongoose = require('mongoose');
+const { isValidObjectId } = mongoose;
 
 const levelUpBonuses = [
   // 500, // Level 1 bonous, you reach 1000 its level2 you got level2 bonous points
@@ -268,7 +270,61 @@ const purchaseBooster = async (req, res, next) => {
   }
 };
 
+const stakingRewards = async (req, res, next) => {
+  try {
+    const { stakingId } = req.body;
+
+    // Validate stakingId
+    if (!isValidObjectId(stakingId)) {
+      return res.status(400).json({ message: "Invalid stakingId format" });
+    }
+
+    // Find the user with the matching stakingId in dailyRewards array
+    const user = await User.findOne({
+      "dailyRewards._id": stakingId,
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Find the specific reward in the dailyRewards array
+    const reward = user.dailyRewards.id(stakingId);
+
+    if (reward.userStaking) {
+      return res.status(400).json({ message: "User has already staked" });
+    }
+
+    // Calculate the doubled reward
+    const doubledReward = reward.totalRewards * 2;
+
+    // Update the totalRewards and userStaking in the dailyRewards array
+    reward.totalRewards = doubledReward;
+    reward.userStaking = true;
+
+    // Update the user's totalRewards and stakingRewards
+    user.totalRewards += doubledReward;
+    user.stakingRewards += doubledReward;
+
+    // Add the staking information to the staking array
+    user.staking.push({
+      userId: reward.userId,
+      createdAt: new Date(),
+    });
+
+    // Save the updated user document
+    await user.save();
+
+    res.status(200).json({ message: "Staking rewards updated successfully", user });
+  } catch (err) {
+    next(err);
+  }
+};
 
 
 
-module.exports = { userWatchRewards, levelDetails, boosterDetails,purchaseBooster };
+
+
+
+
+module.exports = { userWatchRewards, levelDetails, boosterDetails,purchaseBooster,stakingRewards };

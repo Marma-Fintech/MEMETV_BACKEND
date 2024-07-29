@@ -63,7 +63,7 @@ const login = async (req, res, next) => {
   let { name, refferedById, telegramId } = req.body;
   try {
     name = name.trim();
-
+    telegramId = telegramId.trim();
     const refId = generateRefId(); // Implement this function to generate a refId
 
     let user = await User.findOne({ telegramId });
