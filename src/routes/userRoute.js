@@ -6,6 +6,7 @@ const {
   userDetails,
   userGameRewards,
   purchaseGameCards,
+  weekRewards,
 } = require("../controllers/userController");
 
 router.post(
@@ -51,6 +52,16 @@ router.post(
     }),
   }),
   purchaseGameCards
+);
+
+router.get(
+  "/weekRewards/:telegramId",
+  celebrate({
+    [Segments.PARAMS]: Joi.object().keys({
+      telegramId: Joi.string().required(),
+    }),
+  }),
+  weekRewards
 );
 
 router.use(errors());
