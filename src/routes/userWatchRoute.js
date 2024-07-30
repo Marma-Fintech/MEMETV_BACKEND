@@ -13,7 +13,7 @@ router.post(
   celebrate({
     [Segments.BODY]: Joi.object().keys({
       telegramId: Joi.string().required(),
-      userWatchSeconds: Joi.number().required(),
+      userWatchSeconds: Joi.number().optional(),
       boosterPoints: Joi.string().optional(),
       boosters: Joi.array().items(Joi.string()).optional(),
     }),
