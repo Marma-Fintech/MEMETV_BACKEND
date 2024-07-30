@@ -37,8 +37,14 @@ const userSchema = mongoose.Schema(
       default: 500,
     },
     gameRewards: {
-      type: Number,
-      default: 0,
+      gamePoints: {
+        type: Number,
+        default: 0,
+      },
+      createdAt: {
+        type: Date,
+        default: 0
+      },
     },
     stakingRewards:{
       type: Number,

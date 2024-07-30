@@ -15,6 +15,7 @@ router.post(
       telegramId: Joi.string().required(),
       userWatchSeconds: Joi.number().required(),
       boosterPoints: Joi.string().optional(),
+      boosters: Joi.array().items(Joi.string()).optional(),
     }),
   }),
   userWatchRewards

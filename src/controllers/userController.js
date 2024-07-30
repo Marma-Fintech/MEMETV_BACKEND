@@ -269,7 +269,10 @@ const userGameRewards = async (req, res, next) => {
     // Add gamePoints to totalRewards and gameRewards
     if (pointsToAdd > 0) {
       user.totalRewards += pointsToAdd;
-      user.gameRewards += pointsToAdd;
+
+      // Update gameRewards
+      user.gameRewards.gamePoints += pointsToAdd;
+      user.gameRewards.createdAt = new Date(); // Update createdAt to the current date and time
     }
 
     // Get the current date and time
@@ -287,7 +290,7 @@ const userGameRewards = async (req, res, next) => {
       user.dailyRewards.push({
         userId: user._id,
         telegramId: user.telegramId,
-        totalRewards: user.gameRewards,
+        totalRewards: pointsToAdd, // Store only the points added today
         userStaking: false,
         createdAt: now,
       });
@@ -310,6 +313,7 @@ const userGameRewards = async (req, res, next) => {
     next(err);
   }
 };
+
 
 const purchaseGameCards = async (req, res, next) => {
   try {
