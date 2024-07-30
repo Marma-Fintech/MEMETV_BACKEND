@@ -37,9 +37,10 @@ const thresholds = [
   { limit: 10000000, level: 10 },
 ];
 
-const updateLevel = (user) => {
+const updateLevel = (user, currentDateString) => {
   let currentLevel = user.level || 1;
   let newLevel = currentLevel;
+  let newLevelUpPoints = 0;
 
   for (const threshold of thresholds) {
     if (user.totalRewards >= threshold.limit) {
@@ -52,10 +53,34 @@ const updateLevel = (user) => {
   // If the level has increased, apply level-up bonuses
   if (newLevel > currentLevel) {
     for (let i = currentLevel; i < newLevel; i++) {
-      user.totalRewards += levelUpBonuses[i - 1]; // Apply the bonus for the new level
-      user.levelUpRewards += levelUpBonuses[i - 1]; // Add to levelUpRewards
+      newLevelUpPoints += levelUpBonuses[i - 1]; // Accumulate the bonuses
     }
+    user.totalRewards += newLevelUpPoints; // Add total bonuses to totalRewards
+    user.levelUpRewards += newLevelUpPoints; // Add total bonuses to levelUpRewards
     user.level = newLevel;
+  }
+
+  // Update dailyRewards with the new level-up points
+  if (newLevelUpPoints > 0) {
+    let lastDailyReward = user.dailyRewards[user.dailyRewards.length - 1];
+    const lastRewardDateString = lastDailyReward
+      ? new Date(lastDailyReward.createdAt).toISOString().split("T")[0]
+      : null;
+
+    if (lastRewardDateString !== currentDateString) {
+      // Create a new dailyReward entry for today
+      user.dailyRewards.push({
+        userId: user._id,
+        telegramId: user.telegramId,
+        totalRewards: newLevelUpPoints,
+        userStaking: false,
+        createdAt: new Date(),
+      });
+    } else {
+      // Update the existing entry for today
+      lastDailyReward.totalRewards += newLevelUpPoints;
+      lastDailyReward.updatedAt = new Date();
+    }
   }
 };
 
@@ -247,8 +272,33 @@ const userGameRewards = async (req, res, next) => {
       user.gameRewards += pointsToAdd;
     }
 
+    // Get the current date and time
+    const now = new Date();
+    const currentDateString = now.toISOString().split("T")[0]; // "YYYY-MM-DD"
+
+    // Check if there is an existing entry for today in dailyRewards
+    let lastDailyReward = user.dailyRewards[user.dailyRewards.length - 1];
+    const lastRewardDateString = lastDailyReward
+      ? new Date(lastDailyReward.createdAt).toISOString().split("T")[0]
+      : null;
+
+    if (lastRewardDateString !== currentDateString) {
+      // Create a new dailyReward entry for today
+      user.dailyRewards.push({
+        userId: user._id,
+        telegramId: user.telegramId,
+        totalRewards: user.gameRewards,
+        userStaking: false,
+        createdAt: now,
+      });
+    } else {
+      // Update the existing entry for today
+      lastDailyReward.totalRewards += pointsToAdd;
+      lastDailyReward.updatedAt = now;
+    }
+
     // Update the user's level and levelUpRewards based on the new totalRewards
-    updateLevel(user);
+    updateLevel(user, currentDateString);
 
     // Save the updated user document
     await user.save();
@@ -276,7 +326,10 @@ const purchaseGameCards = async (req, res, next) => {
     const pointsToDeduct = Number(gamePoints) || 0;
 
     // Check if the user has enough points
-    if (user.totalRewards >= pointsToDeduct && user.gameRewards >= pointsToDeduct) {
+    if (
+      user.totalRewards >= pointsToDeduct &&
+      user.gameRewards >= pointsToDeduct
+    ) {
       // Deduct points from totalRewards and gameRewards
       user.totalRewards -= pointsToDeduct;
       user.gameRewards -= pointsToDeduct;
@@ -284,7 +337,9 @@ const purchaseGameCards = async (req, res, next) => {
       // Save the updated user document
       await user.save();
 
-      return res.status(200).json({ message: "Game cards purchased successfully", user });
+      return res
+        .status(200)
+        .json({ message: "Game cards purchased successfully", user });
     } else {
       return res.status(400).json({ message: "Not enough points available" });
     }
@@ -309,15 +364,15 @@ const weekRewards = async (req, res, next) => {
     }
 
     // Define the start and end dates
-    const startDate = new Date('2024-07-22');
-    const endDate = new Date('2024-09-29');
+    const startDate = new Date("2024-07-22");
+    const endDate = new Date("2024-09-29");
 
     // Initialize object to hold weekly rewards
     const weeklyRewards = {};
 
     // Helper function to get rewards for a specific week
     const getRewardsForWeek = (weekStartDate, weekEndDate) => {
-      const weekRewards = userDetail.dailyRewards.filter(reward => {
+      const weekRewards = userDetail.dailyRewards.filter((reward) => {
         const rewardDate = new Date(reward.createdAt);
         return rewardDate >= weekStartDate && rewardDate <= weekEndDate;
       });
@@ -326,22 +381,27 @@ const weekRewards = async (req, res, next) => {
       for (let i = 0; i < 7; i++) {
         const date = new Date(weekStartDate);
         date.setDate(weekStartDate.getDate() + i);
-        const dateString = date.toISOString().split('T')[0];
+        const dateString = date.toISOString().split("T")[0];
 
         // Find reward for the specific date
-        const rewardForDate = weekRewards.find(reward => {
-          const rewardDateString = new Date(reward.createdAt).toISOString().split('T')[0];
+        const rewardForDate = weekRewards.find((reward) => {
+          const rewardDateString = new Date(reward.createdAt)
+            .toISOString()
+            .split("T")[0];
           return rewardDateString === dateString;
         });
 
         rewardsForWeek.push({
           date: dateString,
-          totalRewards: rewardForDate ? rewardForDate.totalRewards : 0
+          totalRewards: rewardForDate ? rewardForDate.totalRewards : 0,
         });
       }
 
       // Calculate the total weekly rewards
-      const totalWeeklyRewards = rewardsForWeek.reduce((total, reward) => total + reward.totalRewards, 0);
+      const totalWeeklyRewards = rewardsForWeek.reduce(
+        (total, reward) => total + reward.totalRewards,
+        0
+      );
 
       return { totalWeeklyRewards, rewardsForWeek };
     };
@@ -359,11 +419,14 @@ const weekRewards = async (req, res, next) => {
       }
 
       // Get rewards for the current week
-      const weeklyData = getRewardsForWeek(currentWeekStartDate, currentWeekEndDate);
+      const weeklyData = getRewardsForWeek(
+        currentWeekStartDate,
+        currentWeekEndDate
+      );
       weeklyRewards[`week${weekNumber}`] = {
-        startDate: currentWeekStartDate.toISOString().split('T')[0],
-        endDate: currentWeekEndDate.toISOString().split('T')[0],
-        ...weeklyData
+        startDate: currentWeekStartDate.toISOString().split("T")[0],
+        endDate: currentWeekEndDate.toISOString().split("T")[0],
+        ...weeklyData,
       };
 
       // Move to the next week
@@ -378,16 +441,10 @@ const weekRewards = async (req, res, next) => {
   }
 };
 
-
-
-
-
-
-
-
-
-
-
-
-
-module.exports = { login, userDetails, userGameRewards, purchaseGameCards,weekRewards };
+module.exports = {
+  login,
+  userDetails,
+  userGameRewards,
+  purchaseGameCards,
+  weekRewards,
+};

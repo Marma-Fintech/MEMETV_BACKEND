@@ -3,10 +3,9 @@ const router = express.Router();
 const { celebrate, Joi, errors, Segments } = require("celebrate");
 const {
   userWatchRewards,
-  levelDetails,
   boosterDetails,
   purchaseBooster,
-  stakingRewards
+  stakingRewards,
 } = require("../controllers/userWatchController");
 
 router.post(
@@ -19,16 +18,6 @@ router.post(
     }),
   }),
   userWatchRewards
-);
-
-router.get(
-  "/levelDetails/:telegramId",
-  celebrate({
-    [Segments.PARAMS]: Joi.object().keys({
-      telegramId: Joi.string().required(),
-    }),
-  }),
-  levelDetails
 );
 
 router.get(
@@ -53,13 +42,14 @@ router.post(
   purchaseBooster
 );
 
-router.post("/stakingRewards",
-celebrate({
-  [Segments.BODY]: Joi.object().keys({
-    stakingId: Joi.string().required(),
+router.post(
+  "/stakingRewards",
+  celebrate({
+    [Segments.BODY]: Joi.object().keys({
+      stakingId: Joi.string().required(),
+    }),
   }),
-}),
-stakingRewards
+  stakingRewards
 );
 
 router.use(errors());

@@ -28,62 +28,6 @@ const thresholds = [
   { limit: 10000000, rewardPerSecond: 10, level: 10 },
 ];
 
-const calculateLevel = (totalRewards) => {
-  for (let i = thresholds.length - 1; i >= 0; i--) {
-    if (totalRewards >= thresholds[i].limit) {
-      return thresholds[i].level;
-    }
-  }
-  return 1; // Default to level 1 if no thresholds are met
-};
-
-const calculateCompletionPercentage = (totalRewards, currentLevel) => {
-  const currentThreshold = thresholds.find(threshold => threshold.level === currentLevel);
-  const nextThreshold = thresholds.find(threshold => threshold.level === currentLevel + 1);
-
-  if (nextThreshold) {
-    const levelRange = nextThreshold.limit - currentThreshold.limit;
-    const rewardsInCurrentLevel = totalRewards - currentThreshold.limit;
-    return Math.min((rewardsInCurrentLevel / levelRange) * 100, 100);
-  }
-  return 100; // If there is no next level, the user is at the maximum level
-};
-
-const levelDetails = async (req, res, next) => {
-  try {
-    let { telegramId } = req.params;
-
-    // Trim leading and trailing spaces
-    telegramId = telegramId.trim();
-
-    // Find the user detail document for the given telegramId
-    const userDetail = await User.findOne({ telegramId });
-
-    // Check if user detail was found
-    if (!userDetail) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    const totalRewards = userDetail.totalRewards;
-    const currentLevel = calculateLevel(totalRewards);
-    let completionPercentage = calculateCompletionPercentage(totalRewards, currentLevel);
-
-    // Adjust completion percentage if user has exactly the total rewards required to reach the current level
-    const currentThreshold = thresholds.find(threshold => threshold.level === currentLevel);
-    if (totalRewards === currentThreshold.limit) {
-      completionPercentage = 100;
-    }
-
-    res.status(200).json({
-      level: currentLevel,
-      completionPercentage: completionPercentage,
-      totalRewards: totalRewards
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
 
 const userWatchRewards = async (req, res, next) => {
     try {
@@ -322,9 +266,4 @@ const stakingRewards = async (req, res, next) => {
 };
 
 
-
-
-
-
-
-module.exports = { userWatchRewards, levelDetails, boosterDetails,purchaseBooster,stakingRewards };
+module.exports = { userWatchRewards,boosterDetails,purchaseBooster,stakingRewards };
