@@ -332,11 +332,11 @@ const purchaseGameCards = async (req, res, next) => {
     // Check if the user has enough points
     if (
       user.totalRewards >= pointsToDeduct &&
-      user.gameRewards >= pointsToDeduct
+      user.gameRewards.gamePoints >= pointsToDeduct
     ) {
       // Deduct points from totalRewards and gameRewards
       user.totalRewards -= pointsToDeduct;
-      user.gameRewards -= pointsToDeduct;
+      user.gameRewards.gamePoints -= pointsToDeduct;
 
       // Save the updated user document
       await user.save();
@@ -351,6 +351,7 @@ const purchaseGameCards = async (req, res, next) => {
     next(err);
   }
 };
+
 
 const weekRewards = async (req, res, next) => {
   try {
