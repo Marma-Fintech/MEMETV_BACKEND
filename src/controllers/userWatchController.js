@@ -289,4 +289,52 @@ const stakingRewards = async (req, res, next) => {
 };
 
 
-module.exports = { userWatchRewards,boosterDetails,purchaseBooster,stakingRewards };
+const popularUser = async (req, res, next) => {
+  try {
+    let { telegramId } = req.params;
+
+    // Trim leading and trailing spaces
+    telegramId = telegramId.trim();
+
+    // Retrieve all users sorted by totalRewards in descending order
+    const allUsers = await User.find().sort({ totalRewards: -1 });
+
+    // Find the rank of the specific user
+    const userIndex = allUsers.findIndex(user => user.telegramId === telegramId);
+
+    if (userIndex === -1) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Get the user details and rank
+    const userDetail = allUsers[userIndex];
+    const userRank = userIndex + 1; // Rank is index + 1
+
+    // Format user details
+    const userFormattedDetail = {
+      rank: userRank,
+      telegramId: userDetail.telegramId,
+      name: userDetail.name,
+      level: userDetail.level,
+      totalRewards: userDetail.totalRewards,
+    };
+
+    // Get the top 100 users
+    const topUsers = allUsers.slice(0, 100).map((user, index) => ({
+      rank: index + 1,
+      telegramId: user.telegramId,
+      name: user.name,
+      level: user.level,
+      totalRewards: user.totalRewards,
+    }));
+
+    res.status(200).json({
+      topUsers,
+      yourDetail: userFormattedDetail,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { userWatchRewards,boosterDetails,purchaseBooster,stakingRewards,popularUser };

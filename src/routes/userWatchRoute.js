@@ -6,6 +6,7 @@ const {
   boosterDetails,
   purchaseBooster,
   stakingRewards,
+  popularUser
 } = require("../controllers/userWatchController");
 
 router.post(
@@ -51,6 +52,16 @@ router.post(
     }),
   }),
   stakingRewards
+);
+
+router.get(
+  "/popularUser/:telegramId",
+  celebrate({
+    [Segments.PARAMS]: Joi.object().keys({
+      telegramId: Joi.string().required(),
+    }),
+  }),
+  popularUser
 );
 
 router.use(errors());
