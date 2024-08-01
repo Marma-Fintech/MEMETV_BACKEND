@@ -28,7 +28,7 @@ const thresholds = [
   { limit: 10000000, rewardPerSecond: 10, level: 10 },
 ];
 
-const userEndDate = new Date("2024-08-02");
+const userEndDate = new Date("2024-08-01");
 
 const userWatchRewards = async (req, res, next) => {
   try {
@@ -39,10 +39,23 @@ const userWatchRewards = async (req, res, next) => {
       boosters,
     } = req.body;
 
+    // Get the current date and time
+    const now = new Date();
+
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if the current date is past the userEndDate
+    if (now > userEndDate) {
+      // No rewards or boosters can be processed after the end date
+      return res.status(403).json({
+        message: "User has reached the end date. No rewards or boosters can be processed.",
+        user
+      });
     }
 
     let remainingSeconds = userWatchSeconds;
