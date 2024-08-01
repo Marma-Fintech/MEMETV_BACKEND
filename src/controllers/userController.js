@@ -37,7 +37,7 @@ const thresholds = [
   { limit: 10000000, level: 10 },
 ];
 
-const userEndDate = new Date("2024-09-01");
+const userEndDate = new Date("2024-08-02");
 
 const updateLevel = (user, currentDateString) => {
   const currentDate = new Date(currentDateString);
@@ -246,11 +246,6 @@ const login = async (req, res, next) => {
   }
 };
 
-
-
-
-
-
 const userDetails = async (req, res, next) => {
   try {
     let { telegramId } = req.params;
@@ -280,11 +275,25 @@ const userGameRewards = async (req, res, next) => {
   try {
     const { telegramId, boosters, gamePoints } = req.body;
 
+    // Get the current date and time
+    const now = new Date();
+
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if the current date is past the userEndDate
+    if (now > userEndDate) {
+      return res
+        .status(403)
+        .json({
+          message:
+            "User has reached the end date. No rewards or boosters can be added.",
+          user,
+        });
     }
 
     // Push new boosters into the existing boosters array
@@ -301,11 +310,9 @@ const userGameRewards = async (req, res, next) => {
 
       // Update gameRewards
       user.gameRewards.gamePoints += pointsToAdd;
-      user.gameRewards.createdAt = new Date(); // Update createdAt to the current date and time
+      user.gameRewards.createdAt = now; // Update createdAt to the current date and time
     }
 
-    // Get the current date and time
-    const now = new Date();
     const currentDateString = now.toISOString().split("T")[0]; // "YYYY-MM-DD"
 
     // Check if there is an existing entry for today in dailyRewards
@@ -343,7 +350,6 @@ const userGameRewards = async (req, res, next) => {
   }
 };
 
-
 const purchaseGameCards = async (req, res, next) => {
   try {
     const { telegramId, gamePoints } = req.body;
@@ -380,7 +386,6 @@ const purchaseGameCards = async (req, res, next) => {
     next(err);
   }
 };
-
 
 const weekRewards = async (req, res, next) => {
   try {
