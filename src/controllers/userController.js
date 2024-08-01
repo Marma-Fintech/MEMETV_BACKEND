@@ -37,7 +37,14 @@ const thresholds = [
   { limit: 10000000, level: 10 },
 ];
 
+const userEndDate = new Date("2024-09-01");
+
 const updateLevel = (user, currentDateString) => {
+  const currentDate = new Date(currentDateString);
+  if (currentDate > userEndDate) {
+    return; // No level updates or rewards after the end date
+  }
+
   let currentLevel = user.level || 1;
   let newLevel = currentLevel;
   let newLevelUpPoints = 0;
@@ -98,6 +105,22 @@ const login = async (req, res, next) => {
     const currentMonth = currentDate.getUTCMonth();
     const currentYear = currentDate.getUTCFullYear();
 
+    if (currentDate > userEndDate) {
+      if (!user) {
+        return res.status(403).json({
+          message: "No new users can be created after the end date",
+        });
+      } else {
+        user.lastLogin = currentDate;
+        await user.save();
+        return res.status(201).json({
+          message: "User logged in successfully",
+          user,
+          warning: "No rewards can be calculated after the end date",
+        });
+      }
+    }
+
     let referringUser = null;
     if (refferedById) {
       referringUser = await User.findOne({ refId: refferedById });
@@ -119,6 +142,7 @@ const login = async (req, res, next) => {
         referRewards: 0,
         lastLogin: currentDate,
         level: 1,
+        levelUpRewards: 500,
       });
 
       user.dailyRewards.push({
@@ -189,7 +213,7 @@ const login = async (req, res, next) => {
           }
         }
 
-        updateLevel(referringUser);
+        updateLevel(referringUser, currentDate.toISOString().split("T")[0]);
 
         await referringUser.save();
       }
@@ -211,7 +235,7 @@ const login = async (req, res, next) => {
       await user.save();
     }
 
-    updateLevel(user);
+    updateLevel(user, currentDate.toISOString().split("T")[0]);
 
     res.status(201).json({
       message: `User logged in successfully`,
@@ -221,6 +245,11 @@ const login = async (req, res, next) => {
     next(err);
   }
 };
+
+
+
+
+
 
 const userDetails = async (req, res, next) => {
   try {
