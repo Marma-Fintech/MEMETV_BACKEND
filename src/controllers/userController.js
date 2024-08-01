@@ -354,11 +354,22 @@ const purchaseGameCards = async (req, res, next) => {
   try {
     const { telegramId, gamePoints } = req.body;
 
+    // Get the current date and time
+    const now = new Date();
+
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if the current date is past the userEndDate
+    if (now > userEndDate) {
+      return res.status(403).json({
+        message: "User has reached the end date. No purchases can be made.",
+        user
+      });
     }
 
     // Ensure gamePoints is a number
