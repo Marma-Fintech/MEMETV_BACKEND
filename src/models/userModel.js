@@ -50,6 +50,10 @@ const userSchema = mongoose.Schema(
       type: Number,
       default: 0,
     },
+    streakRewards: {
+      type: Number,
+      default: 0,
+    },
     boosters: [{ type: String }],
     lastLogin: { type: Date }, // Track the last login time
     dailyRewards: [
@@ -74,12 +78,50 @@ const userSchema = mongoose.Schema(
         },
       },
     ],
+    streak:
+      {
+        loginStreak: {
+          type: Number,
+          default: 0,
+        },
+        watchStreak: {
+          watchStreakCount: {
+            type: Number,
+            default: 0,
+          },
+          watchStreakDate: {
+            type: Date,
+            default: Date.now,
+          }
+        },
+        referStreak: {
+          referStreakCount: {
+            type: Number,
+            default: 0,
+          },
+          referStreakDate: {
+            type: Date,
+            default: Date.now,
+          }
+        },
+        taskStreak: {
+          type: Number,
+          default: 0,
+        },
+        boostStreak:{
+          type: Number
+        }
+      },
     yourReferenceIds: [
       {
         userId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Users",
           required: true,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
         },
       },
     ],
