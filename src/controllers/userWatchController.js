@@ -1,5 +1,5 @@
 const User = require("../models/userModel");
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 const { isValidObjectId } = mongoose;
 
 const levelUpBonuses = [
@@ -28,10 +28,16 @@ const thresholds = [
   { limit: 10000000, rewardPerSecond: 10, level: 10 },
 ];
 
+const userEndDate = new Date("2024-08-02");
 
 const userWatchRewards = async (req, res, next) => {
   try {
-    const { telegramId, userWatchSeconds, boosterPoints = 0, boosters } = req.body;
+    const {
+      telegramId,
+      userWatchSeconds,
+      boosterPoints = 0,
+      boosters,
+    } = req.body;
 
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
@@ -136,12 +142,13 @@ const userWatchRewards = async (req, res, next) => {
     }
 
     // Update watchRewards and levelUpRewards fields
-    user.watchRewards = (user.watchRewards || 0) + newRewards + parsedBoosterPoints;
+    user.watchRewards =
+      (user.watchRewards || 0) + newRewards + parsedBoosterPoints;
     user.levelUpRewards = (user.levelUpRewards || 0) + levelUpBonus;
 
     // Remove only the specified boosters from the user's boosters array
     if (boosters && boosters.length > 0) {
-      boosters.forEach(booster => {
+      boosters.forEach((booster) => {
         const index = user.boosters.indexOf(booster);
         if (index > -1) {
           user.boosters.splice(index, 1); // Remove the first occurrence of the booster
@@ -168,7 +175,7 @@ const userWatchRewards = async (req, res, next) => {
       stakingRewards: user.stakingRewards,
       boosters: user.boosters,
       lastLogin: user.lastLogin,
-      yourReferenceIds:user.yourReferenceIds,
+      yourReferenceIds: user.yourReferenceIds,
       staking: user.staking,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
@@ -178,8 +185,6 @@ const userWatchRewards = async (req, res, next) => {
   }
 };
 
-
-  
 const boosterDetails = async (req, res, next) => {
   try {
     let { telegramId } = req.params;
@@ -192,13 +197,13 @@ const boosterDetails = async (req, res, next) => {
 
     // Check if user detail was found
     if (!userDetail) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: "User not found" });
     }
 
     // Return the boosters array along with other relevant user details
     res.status(200).json({
-      message: 'User details fetched successfully',
-      boosters: userDetail.boosters
+      message: "User details fetched successfully",
+      boosters: userDetail.boosters,
     });
   } catch (err) {
     next(err);
@@ -209,6 +214,9 @@ const purchaseBooster = async (req, res, next) => {
   try {
     const { telegramId, boosterPoints, booster } = req.body;
 
+    // Get the current date and time
+    const now = new Date();
+
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
 
@@ -216,9 +224,22 @@ const purchaseBooster = async (req, res, next) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Check if the current date is past the userEndDate
+    if (now > userEndDate) {
+      return res.status(403).json({
+        message: "User has reached the end date. No purchases can be made.",
+        user
+      });
+    }
+
     // Check if the user has enough boosterPoints available in both totalRewards and watchRewards
-    if (user.totalRewards < boosterPoints || user.watchRewards < boosterPoints) {
-      return res.status(400).json({ message: "Not enough purchase points available" });
+    if (
+      user.totalRewards < boosterPoints ||
+      user.watchRewards < boosterPoints
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Not enough purchase points available" });
     }
 
     // Deduct the boosterPoints from totalRewards and watchRewards
@@ -231,7 +252,7 @@ const purchaseBooster = async (req, res, next) => {
     // Save the updated user
     await user.save();
 
-    res.status(200).json({ message: "Booster purchased successfully" });
+    res.status(200).json({ message: "Booster purchased successfully", user });
   } catch (err) {
     next(err);
   }
@@ -282,12 +303,13 @@ const stakingRewards = async (req, res, next) => {
     // Save the updated user document
     await user.save();
 
-    res.status(200).json({ message: "Staking rewards updated successfully", user });
+    res
+      .status(200)
+      .json({ message: "Staking rewards updated successfully", user });
   } catch (err) {
     next(err);
   }
 };
-
 
 const popularUser = async (req, res, next) => {
   try {
@@ -300,10 +322,12 @@ const popularUser = async (req, res, next) => {
     const allUsers = await User.find().sort({ totalRewards: -1 });
 
     // Find the rank of the specific user
-    const userIndex = allUsers.findIndex(user => user.telegramId === telegramId);
+    const userIndex = allUsers.findIndex(
+      (user) => user.telegramId === telegramId
+    );
 
     if (userIndex === -1) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: "User not found" });
     }
 
     // Get the user details and rank
@@ -337,4 +361,10 @@ const popularUser = async (req, res, next) => {
   }
 };
 
-module.exports = { userWatchRewards,boosterDetails,purchaseBooster,stakingRewards,popularUser };
+module.exports = {
+  userWatchRewards,
+  boosterDetails,
+  purchaseBooster,
+  stakingRewards,
+  popularUser,
+};

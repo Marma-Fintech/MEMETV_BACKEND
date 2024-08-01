@@ -6,7 +6,7 @@ const {
   boosterDetails,
   purchaseBooster,
   stakingRewards,
-  popularUser
+  popularUser,
 } = require("../controllers/userWatchController");
 
 router.post(

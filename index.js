@@ -2,11 +2,11 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const mongoose = require("mongoose");
-const morgan = require('morgan');
-const helmet = require('helmet');
-const cookieParser = require('cookie-parser');
+const morgan = require("morgan");
+const helmet = require("helmet");
+const cookieParser = require("cookie-parser");
 const TelegramBot = require("node-telegram-bot-api");
-require('dotenv').config();
+require("dotenv").config();
 const router = require("./src/routes/allRoutes");
 
 // MongoDB connection URL
@@ -19,13 +19,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-
 app.use(cookieParser());
 
 app.use(helmet());
 
 // Middleware for request logging
-app.use(morgan(':method :url :status'));
+app.use(morgan(":method :url :status"));
 
 // Initialize Telegram Bot
 const token = process.env.TELEGRAM_TOKEN;
@@ -55,22 +54,24 @@ bot.onText(/\/start(?:\s+(\d+))?/, (msg, match) => {
 // Use your routes
 app.use(router);
 
-
 // Connect to MongoDB
-mongoose.connect(mongoUrl, {
-})
+mongoose
+  .connect(mongoUrl, {})
   .then(() => {
-    console.log("*********🛡️🔍 🏖️  Successfully Connected to MongoDB 🏖️ 🔍🛡️ **********");
+    console.log(
+      "*********🛡️🔍 🏖️  Successfully Connected to MongoDB 🏖️ 🔍🛡️ **********"
+    );
   })
   .catch((err) => {
     console.error("MongoDB Connection Failure", err);
   });
-
 
 // Define the port to listen on
 const port = process.env.PORT || 9090;
 
 // Start the Express server
 app.listen(port, () => {
-  console.log(`🔥🔥🏖️  $$$$$$ Server is listening on port ${port} $$$$$$$ 🏖️ 🔥🔥`);
+  console.log(
+    `🔥🔥🏖️  $$$$$$ Server is listening on port ${port} $$$$$$$ 🏖️ 🔥🔥`
+  );
 });
