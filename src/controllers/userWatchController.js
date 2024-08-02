@@ -311,6 +311,18 @@ const stakingRewards = async (req, res, next) => {
     user.totalRewards += additionalReward; // Only add the extra amount to totalRewards
     user.stakingRewards += additionalReward; // Add the same extra amount to stakingRewards
 
+    // Check for level-up bonuses and update the user's level
+    let currentLevel = user.level;
+    while (currentLevel < levelUpBonuses.length && user.totalRewards >= levelUpBonuses[currentLevel - 1]) {
+      // Add level-up bonus points to both totalRewards and levelUpRewards
+      const levelUpBonus = levelUpBonuses[currentLevel - 1];
+      user.totalRewards += levelUpBonus;
+      user.levelUpRewards += levelUpBonus;
+      // Update the user's level
+      currentLevel += 1;
+    }
+    user.level = currentLevel;
+
     // Add the staking information to the staking array
     user.staking.push({
       userId: reward.userId,
@@ -327,6 +339,10 @@ const stakingRewards = async (req, res, next) => {
     next(err);
   }
 };
+
+
+
+
 
 
 const popularUser = async (req, res, next) => {
