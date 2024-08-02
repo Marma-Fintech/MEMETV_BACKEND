@@ -53,8 +53,9 @@ const userWatchRewards = async (req, res, next) => {
     if (now > userEndDate) {
       // No rewards or boosters can be processed after the end date
       return res.status(403).json({
-        message: "User has reached the end date. No rewards or boosters can be processed.",
-        user
+        message:
+          "User has reached the end date. No rewards or boosters can be processed.",
+        user,
       });
     }
 
@@ -241,7 +242,7 @@ const purchaseBooster = async (req, res, next) => {
     if (now > userEndDate) {
       return res.status(403).json({
         message: "User has reached the end date. No purchases can be made.",
-        user
+        user,
       });
     }
 
@@ -374,10 +375,56 @@ const popularUser = async (req, res, next) => {
   }
 };
 
+const yourRefferals = async (req, res, next) => {
+  try {
+    let { telegramId } = req.params;
+    telegramId = telegramId.trim();
+
+    // Find the user by telegramId
+    const user = await User.findOne({ telegramId });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Extract the userIds from the yourReferenceIds array
+    const userIds = user.yourReferenceIds.map(ref => ref.userId);
+
+    // Find the referenced users and select the required fields
+    const referencedUsers = await User.find({ _id: { $in: userIds } }).select('name totalRewards');
+
+    // Create a map of referenced users by their ID for quick lookup
+    const userMap = new Map();
+    referencedUsers.forEach(refUser => {
+      userMap.set(refUser._id.toString(), refUser);
+    });
+
+    // Construct the referrals response
+    const referrals = user.yourReferenceIds.map(ref => {
+      const refUser = userMap.get(ref.userId.toString());
+      return {
+        userId: ref.userId,
+        name: refUser.name,
+        totalRewards: refUser.totalRewards,
+        createdAt: ref.createdAt
+      };
+    });
+
+    res.status(200).json({ referrals });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+
+
+
 module.exports = {
   userWatchRewards,
   boosterDetails,
   purchaseBooster,
   stakingRewards,
   popularUser,
+  yourRefferals,
 };
