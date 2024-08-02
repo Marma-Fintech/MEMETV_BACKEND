@@ -375,10 +375,16 @@ const popularUser = async (req, res, next) => {
   }
 };
 
+
 const yourRefferals = async (req, res, next) => {
   try {
     let { telegramId } = req.params;
     telegramId = telegramId.trim();
+
+    // Get pagination parameters from query, set defaults if not provided
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
@@ -388,7 +394,10 @@ const yourRefferals = async (req, res, next) => {
     }
 
     // Extract the userIds from the yourReferenceIds array
-    const userIds = user.yourReferenceIds.map(ref => ref.userId);
+    const totalReferrals = user.yourReferenceIds.length;
+    const paginatedReferenceIds = user.yourReferenceIds.slice(skip, skip + limit);
+
+    const userIds = paginatedReferenceIds.map(ref => ref.userId);
 
     // Find the referenced users and select the required fields
     const referencedUsers = await User.find({ _id: { $in: userIds } }).select('name totalRewards');
@@ -400,24 +409,27 @@ const yourRefferals = async (req, res, next) => {
     });
 
     // Construct the referrals response
-    const referrals = user.yourReferenceIds.map(ref => {
+    const referrals = paginatedReferenceIds.map(ref => {
       const refUser = userMap.get(ref.userId.toString());
       return {
         userId: ref.userId,
-        name: refUser.name,
-        totalRewards: refUser.totalRewards,
+        name: refUser ? refUser.name : 'Unknown',  // Handle case where referenced user is not found
+        totalRewards: refUser ? refUser.totalRewards : 0,  // Handle case where referenced user is not found
         createdAt: ref.createdAt
       };
     });
 
-    res.status(200).json({ referrals });
+    res.status(200).json({ 
+      referrals,
+      total: totalReferrals,
+      page,
+      limit,
+      totalPages: Math.ceil(totalReferrals / limit)
+    });
   } catch (err) {
     next(err);
   }
 };
-
-
-
 
 
 module.exports = {
