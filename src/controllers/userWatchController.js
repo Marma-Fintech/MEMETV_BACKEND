@@ -297,7 +297,10 @@ const stakingRewards = async (req, res, next) => {
       return res.status(400).json({ message: "User has already staked" });
     }
 
-    // Calculate the doubled reward
+    // Calculate the additional reward
+    const additionalReward = reward.totalRewards;
+
+    // Double the total reward
     const doubledReward = reward.totalRewards * 2;
 
     // Update the totalRewards and userStaking in the dailyRewards array
@@ -305,8 +308,8 @@ const stakingRewards = async (req, res, next) => {
     reward.userStaking = true;
 
     // Update the user's totalRewards and stakingRewards
-    user.totalRewards += doubledReward;
-    user.stakingRewards += doubledReward;
+    user.totalRewards += additionalReward; // Only add the extra amount to totalRewards
+    user.stakingRewards += additionalReward; // Add the same extra amount to stakingRewards
 
     // Add the staking information to the staking array
     user.staking.push({
@@ -324,6 +327,7 @@ const stakingRewards = async (req, res, next) => {
     next(err);
   }
 };
+
 
 const popularUser = async (req, res, next) => {
   try {
