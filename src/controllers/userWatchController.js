@@ -313,7 +313,10 @@ const stakingRewards = async (req, res, next) => {
 
     // Check for level-up bonuses and update the user's level
     let currentLevel = user.level;
-    while (currentLevel < levelUpBonuses.length && user.totalRewards >= levelUpBonuses[currentLevel - 1]) {
+    while (
+      currentLevel < levelUpBonuses.length &&
+      user.totalRewards >= levelUpBonuses[currentLevel - 1]
+    ) {
       // Add level-up bonus points to both totalRewards and levelUpRewards
       const levelUpBonus = levelUpBonuses[currentLevel - 1];
       user.totalRewards += levelUpBonus;
@@ -339,11 +342,6 @@ const stakingRewards = async (req, res, next) => {
     next(err);
   }
 };
-
-
-
-
-
 
 const popularUser = async (req, res, next) => {
   try {
@@ -395,7 +393,6 @@ const popularUser = async (req, res, next) => {
   }
 };
 
-
 const yourRefferals = async (req, res, next) => {
   try {
     let { telegramId } = req.params;
@@ -410,47 +407,51 @@ const yourRefferals = async (req, res, next) => {
     const user = await User.findOne({ telegramId });
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: "User not found" });
     }
 
     // Extract the userIds from the yourReferenceIds array
     const totalReferrals = user.yourReferenceIds.length;
-    const paginatedReferenceIds = user.yourReferenceIds.slice(skip, skip + limit);
+    const paginatedReferenceIds = user.yourReferenceIds.slice(
+      skip,
+      skip + limit
+    );
 
-    const userIds = paginatedReferenceIds.map(ref => ref.userId);
+    const userIds = paginatedReferenceIds.map((ref) => ref.userId);
 
     // Find the referenced users and select the required fields
-    const referencedUsers = await User.find({ _id: { $in: userIds } }).select('name totalRewards');
+    const referencedUsers = await User.find({ _id: { $in: userIds } }).select(
+      "name totalRewards"
+    );
 
     // Create a map of referenced users by their ID for quick lookup
     const userMap = new Map();
-    referencedUsers.forEach(refUser => {
+    referencedUsers.forEach((refUser) => {
       userMap.set(refUser._id.toString(), refUser);
     });
 
     // Construct the referrals response
-    const referrals = paginatedReferenceIds.map(ref => {
+    const referrals = paginatedReferenceIds.map((ref) => {
       const refUser = userMap.get(ref.userId.toString());
       return {
         userId: ref.userId,
-        name: refUser ? refUser.name : 'Unknown',  // Handle case where referenced user is not found
-        totalRewards: refUser ? refUser.totalRewards : 0,  // Handle case where referenced user is not found
-        createdAt: ref.createdAt
+        name: refUser ? refUser.name : "Unknown", // Handle case where referenced user is not found
+        totalRewards: refUser ? refUser.totalRewards : 0, // Handle case where referenced user is not found
+        createdAt: ref.createdAt,
       };
     });
 
-    res.status(200).json({ 
+    res.status(200).json({
       referrals,
       total: totalReferrals,
       page,
       limit,
-      totalPages: Math.ceil(totalReferrals / limit)
+      totalPages: Math.ceil(totalReferrals / limit),
     });
   } catch (err) {
     next(err);
   }
 };
-
 
 module.exports = {
   userWatchRewards,

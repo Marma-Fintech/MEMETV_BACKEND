@@ -287,13 +287,11 @@ const userGameRewards = async (req, res, next) => {
 
     // Check if the current date is past the userEndDate
     if (now > userEndDate) {
-      return res
-        .status(403)
-        .json({
-          message:
-            "User has reached the end date. No rewards or boosters can be added.",
-          user,
-        });
+      return res.status(403).json({
+        message:
+          "User has reached the end date. No rewards or boosters can be added.",
+        user,
+      });
     }
 
     // Push new boosters into the existing boosters array
@@ -368,7 +366,7 @@ const purchaseGameCards = async (req, res, next) => {
     if (now > userEndDate) {
       return res.status(403).json({
         message: "User has reached the end date. No purchases can be made.",
-        user
+        user,
       });
     }
 
