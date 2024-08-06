@@ -79,39 +79,98 @@ const userSchema = mongoose.Schema(
       },
     ],
     streak:
-      {
-        loginStreak: {
+    {
+      loginStreak: {
+        loginStreakCount: {
           type: Number,
           default: 0,
         },
-        watchStreak: {
-          watchStreakCount: {
-            type: Number,
-            default: 0,
-          },
-          watchStreakDate: {
-            type: Date,
-            default: Date.now,
-          }
+        loginStreakDate: {
+          type: Date,
+          default: Date.now,
         },
-        referStreak: {
-          referStreakCount: {
-            type: Number,
-            default: 0,
-          },
-          referStreakDate: {
-            type: Date,
-            default: Date.now,
-          }
-        },
-        taskStreak: {
+        loginStreakReward: [{
+          type: Number,
+          default: 0,
+        }],
+        unClaimedLoginStreakReward: {
           type: Number,
           default: 0,
         },
-        boostStreak:{
-          type: Number
+      },
+      watchStreak: {
+        watchStreakCount: {
+          type: Number,
+          default: 0,
+        },
+        watchStreakDate: {
+          type: Date,
+          default: Date.now,
+        },
+        watchStreakReward: [{
+          type: Number,
+          default: 0,
+        }],
+        unClaimedWatchStreakReward: {
+          type: Number,
+          default: 0,
+        },
+      },
+      referStreak: {
+        referStreakCount: {
+          type: Number,
+          default: 0,
+        },
+        referStreakDate: {
+          type: Date,
+          default: Date.now,
+        },
+        referStreakReward: [{
+          type: Number,
+          default: 0,
+        }],
+        unClaimedReferStreakReward: {
+          type: Number,
+          default: 0,
+        },
+      },
+      taskStreak: {
+        taskStreakCount: {
+          type: Number,
+          default: 0,
+        },
+        taskStreakDate: {
+          type: Date,
+          default: Date.now,
+        },
+        taskStreakReward: [{
+          type: Number,
+          default: 0,
+        }],
+        unClaimedTaskStreakReward: {
+          type: Number,
+          default: 0,
+        },
+      },
+      multiStreak: {
+        multiStreakCount: {
+          type: Number,
+          default: 0,
+        },
+        multiStreakDate: {
+          type: Date,
+          default: Date.now,
+        },
+        multiStreakReward: [{
+          type: Number,
+          default: 0,
+        }],
+        unClaimedMultiStreakReward: {
+          type: Number,
+          default: 0,
         }
       },
+    },
     yourReferenceIds: [
       {
         userId: {
