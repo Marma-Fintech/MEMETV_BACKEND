@@ -69,7 +69,7 @@ const calculateLoginStreak = async (user, lastLoginDate, differenceInDays) => {
       user.streak.loginStreak.loginStreakCount - 1
     ] = rewardAmount;
     for(i=0 ;i<user.streak.loginStreak.loginStreakCount;i++){
-      user.booster.push("3X");
+      user.boosters.push("3X");
     }
     return true;
   } else {
@@ -129,7 +129,7 @@ const calculateWatchStreak = async (
           user.streak.watchStreak.watchStreakCount - 1
         ] = rewardAmount;
         for(i=0 ;i<user.streak.watchStreak.watchStreakCount;i++){
-          user.booster.push("3X");
+          user.boosters.push("3X");
         }
         return true;
       } else {
@@ -209,7 +209,7 @@ const calculateReferStreak = async (user, todaysLogin, differenceInDays) => {
         user.streak.referStreak.referStreakCount - 1
       ] = rewardAmount;
       for(i=0 ;i<user.streak.referStreak.referStreakCount;i++){
-        user.booster.push("3X");
+        user.boosters.push("3X");
       }
       return true;
     } else {
@@ -264,7 +264,7 @@ const calculateTaskStreak = async (user, todaysLogin, differenceInDays) => {
       user.streak.taskStreak.taskStreakCount - 1
     ] = rewardAmount;
     for(i=0 ;i<user.streak.taskStreak.taskStreakCount;i++){
-      user.booster.push("3X");
+      user.boosters.push("3X");
     }
     return true;
   } else {
@@ -376,7 +376,7 @@ const calculateMultiStreak = async (
         user.streak.multiStreak.multiStreakDate = new Date();
       }
       for(i=0 ;i<user.streak.multiStreak.multiStreakCount;i++){
-        user.booster.push("5X");
+        user.boosters.push("5X");
       }
       const rewardAmount =
         multiStreakReward[user.streak.multiStreak.multiStreakCount - 2] ===
