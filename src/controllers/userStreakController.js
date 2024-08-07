@@ -4,6 +4,7 @@ const loginStreakReward = [100, 200, 400, 800, 1600, 3200, 6400];
 const watchStreakReward = [100, 200, 400, 800, 1600, 3200, 6400];
 const referStreakReward = [1000, 2000, 3000, 5000, 10000, 15000, 25000];
 const taskStreakReward = [100, 200, 400, 800, 1600, 3200, 6400];
+const boostsers = [1,2,3,4,5,6,7];
 
 const multiStreakReward = [2100, 4200, 8400, 16800, 33600, 67200];
 const distributionStartDate = new Date(process.env.DISTRIBUTION_START_DATE);
@@ -21,6 +22,7 @@ const calculateDayDifference = async (lastDate) => {
   const differenceInDays = differenceInTime / (1000 * 3600 * 24);
   return differenceInDays;
 };
+
 
 const calculateLoginStreak = async (user, lastLoginDate, differenceInDays) => {
   const currentDate = new Date();
@@ -66,6 +68,9 @@ const calculateLoginStreak = async (user, lastLoginDate, differenceInDays) => {
     user.streak.loginStreak.loginStreakReward[
       user.streak.loginStreak.loginStreakCount - 1
     ] = rewardAmount;
+    for(i=0 ;i<user.streak.loginStreak.loginStreakCount;i++){
+      user.booster.push("3X");
+    }
     return true;
   } else {
     if (lastLoginDay == currentDay) {
@@ -123,6 +128,9 @@ const calculateWatchStreak = async (
         user.streak.watchStreak.watchStreakReward[
           user.streak.watchStreak.watchStreakCount - 1
         ] = rewardAmount;
+        for(i=0 ;i<user.streak.watchStreak.watchStreakCount;i++){
+          user.booster.push("3X");
+        }
         return true;
       } else {
         console.log("Already in a Watch Streak");
@@ -200,6 +208,9 @@ const calculateReferStreak = async (user, todaysLogin, differenceInDays) => {
       user.streak.referStreak.referStreakReward[
         user.streak.referStreak.referStreakCount - 1
       ] = rewardAmount;
+      for(i=0 ;i<user.streak.referStreak.referStreakCount;i++){
+        user.booster.push("3X");
+      }
       return true;
     } else {
       return false;
@@ -252,6 +263,9 @@ const calculateTaskStreak = async (user, todaysLogin, differenceInDays) => {
     user.streak.taskStreak.taskStreakReward[
       user.streak.taskStreak.taskStreakCount - 1
     ] = rewardAmount;
+    for(i=0 ;i<user.streak.taskStreak.taskStreakCount;i++){
+      user.booster.push("3X");
+    }
     return true;
   } else {
     return false;
@@ -361,12 +375,14 @@ const calculateMultiStreak = async (
         user.streak.multiStreak.multiStreakCount++;
         user.streak.multiStreak.multiStreakDate = new Date();
       }
+      for(i=0 ;i<user.streak.multiStreak.multiStreakCount;i++){
+        user.booster.push("5X");
+      }
       const rewardAmount =
         multiStreakReward[user.streak.multiStreak.multiStreakCount - 2] ===
         undefined
           ? 0
           : multiStreakReward[user.streak.multiStreak.multiStreakCount - 2];
-      //add rewards to watch streak rewards
       if (user.streak.multiStreak.multiStreakCount == 0) {
         for (i = 0; i < user.streak.multiStreak.multiStreakReward.length; i++) {
           user.streak.multiStreak.unClaimedMultiStreakReward +=
@@ -667,3 +683,4 @@ module.exports = {
   taskStreakRewardClaim,
   multiStreakRewardClaim,
 };
+
