@@ -7,7 +7,7 @@ const {
   purchaseBooster,
   stakingRewards,
   popularUser,
-  yourRefferals,
+  yourReferrals,
 } = require("../controllers/userWatchController");
 
 router.post(
@@ -66,13 +66,13 @@ router.get(
 );
 
 router.get(
-  "/yourRefferals/:telegramId",
+  "yourReferrals",
   celebrate({
     [Segments.PARAMS]: Joi.object().keys({
       telegramId: Joi.string().required(),
     }),
   }),
-  yourRefferals
+  yourReferrals
 );
 
 router.use(errors());

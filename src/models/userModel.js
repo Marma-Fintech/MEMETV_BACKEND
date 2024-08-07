@@ -12,7 +12,7 @@ const userSchema = mongoose.Schema(
     refId: {
       type: String,
     },
-    refferedById: {
+    referredById: {
       type: String,
       default: "",
     },

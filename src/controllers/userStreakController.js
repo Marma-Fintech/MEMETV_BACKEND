@@ -4,7 +4,6 @@ const loginStreakReward = [100, 200, 400, 800, 1600, 3200, 6400];
 const watchStreakReward = [100, 200, 400, 800, 1600, 3200, 6400];
 const referStreakReward = [1000, 2000, 3000, 5000, 10000, 15000, 25000];
 const taskStreakReward = [100, 200, 400, 800, 1600, 3200, 6400];
-const boostsers = [1,2,3,4,5,6,7];
 
 const multiStreakReward = [2100, 4200, 8400, 16800, 33600, 67200];
 const distributionStartDate = new Date(process.env.DISTRIBUTION_START_DATE);
@@ -22,7 +21,6 @@ const calculateDayDifference = async (lastDate) => {
   const differenceInDays = differenceInTime / (1000 * 3600 * 24);
   return differenceInDays;
 };
-
 
 const calculateLoginStreak = async (user, lastLoginDate, differenceInDays) => {
   const currentDate = new Date();
@@ -68,7 +66,7 @@ const calculateLoginStreak = async (user, lastLoginDate, differenceInDays) => {
     user.streak.loginStreak.loginStreakReward[
       user.streak.loginStreak.loginStreakCount - 1
     ] = rewardAmount;
-    for(i=0 ;i<user.streak.loginStreak.loginStreakCount;i++){
+    for (i = 0; i < user.streak.loginStreak.loginStreakCount; i++) {
       user.boosters.push("3X");
     }
     return true;
@@ -128,7 +126,7 @@ const calculateWatchStreak = async (
         user.streak.watchStreak.watchStreakReward[
           user.streak.watchStreak.watchStreakCount - 1
         ] = rewardAmount;
-        for(i=0 ;i<user.streak.watchStreak.watchStreakCount;i++){
+        for (i = 0; i < user.streak.watchStreak.watchStreakCount; i++) {
           user.boosters.push("3X");
         }
         return true;
@@ -208,7 +206,7 @@ const calculateReferStreak = async (user, todaysLogin, differenceInDays) => {
       user.streak.referStreak.referStreakReward[
         user.streak.referStreak.referStreakCount - 1
       ] = rewardAmount;
-      for(i=0 ;i<user.streak.referStreak.referStreakCount;i++){
+      for (i = 0; i < user.streak.referStreak.referStreakCount; i++) {
         user.boosters.push("3X");
       }
       return true;
@@ -263,7 +261,7 @@ const calculateTaskStreak = async (user, todaysLogin, differenceInDays) => {
     user.streak.taskStreak.taskStreakReward[
       user.streak.taskStreak.taskStreakCount - 1
     ] = rewardAmount;
-    for(i=0 ;i<user.streak.taskStreak.taskStreakCount;i++){
+    for (i = 0; i < user.streak.taskStreak.taskStreakCount; i++) {
       user.boosters.push("3X");
     }
     return true;
@@ -340,7 +338,7 @@ const streak = async (req, res, next) => {
       name: user.name,
       telegramId: user.telegramId,
       refId: user.refId,
-      refferedById: user.refferedById,
+      referredById: user.referredById,
       totalRewards: user.totalRewards,
       dailyRewards: user.dailyRewards,
       streaks: user.streak,
@@ -360,7 +358,7 @@ const calculateMultiStreak = async (
   differenceInDays
 ) => {
   if (
-    (await calculateDayDifference(user.streak.watchStreak.watchStreakDate)) > 1
+    (await calculateDayDifference(user.streak.multiStreak.multiStreakDate)) >= 1
   ) {
     if (todaysLogin) {
       if (!todaysLogin || !todaysWatch || !todaysRefer || !todaysTask) {
@@ -375,7 +373,7 @@ const calculateMultiStreak = async (
         user.streak.multiStreak.multiStreakCount++;
         user.streak.multiStreak.multiStreakDate = new Date();
       }
-      for(i=0 ;i<user.streak.multiStreak.multiStreakCount;i++){
+      for (i = 0; i < user.streak.multiStreak.multiStreakCount; i++) {
         user.boosters.push("5X");
       }
       const rewardAmount =
@@ -439,13 +437,11 @@ const loginStreakRewardClaim = async (req, res, next) => {
       }
       user.streak.loginStreak.loginStreakReward[index] = 0;
       await user.save();
-      res
-        .status(200)
-        .json({
-          message: "Login Streak Rewards claimed successfully",
-          loginStreak: user.streak.loginStreak,
-          totalRewards: user.totalRewards,
-        });
+      res.status(200).json({
+        message: "Login Streak Rewards claimed successfully",
+        loginStreak: user.streak.loginStreak,
+        totalRewards: user.totalRewards,
+      });
     } else {
       res
         .status(400)
@@ -494,13 +490,11 @@ const watchStreakRewardClaim = async (req, res, next) => {
       }
       user.streak.watchStreak.watchStreakReward[index] = 0;
       await user.save();
-      res
-        .status(200)
-        .json({
-          message: "Watch Streak Rewards claimed successfully",
-          watchStreak: user.streak.watchStreak,
-          totalRewards: user.totalRewards,
-        });
+      res.status(200).json({
+        message: "Watch Streak Rewards claimed successfully",
+        watchStreak: user.streak.watchStreak,
+        totalRewards: user.totalRewards,
+      });
     } else {
       res
         .status(400)
@@ -549,13 +543,11 @@ const referStreakRewardClaim = async (req, res, next) => {
       }
       user.streak.referStreak.referStreakReward[index] = 0;
       await user.save();
-      res
-        .status(200)
-        .json({
-          message: "Refer Streak Rewards claimed successfully",
-          referStreak: user.streak.watchStreak,
-          totalRewards: user.totalRewards,
-        });
+      res.status(200).json({
+        message: "Refer Streak Rewards claimed successfully",
+        referStreak: user.streak.watchStreak,
+        totalRewards: user.totalRewards,
+      });
     } else {
       res
         .status(400)
@@ -604,13 +596,11 @@ const taskStreakRewardClaim = async (req, res, next) => {
       }
       user.streak.taskStreak.taskStreakReward[index] = 0;
       await user.save();
-      res
-        .status(200)
-        .json({
-          message: "Task Streak Rewards claimed successfully",
-          TaskStreak: user.streak.taskStreak,
-          totalRewards: user.totalRewards,
-        });
+      res.status(200).json({
+        message: "Task Streak Rewards claimed successfully",
+        TaskStreak: user.streak.taskStreak,
+        totalRewards: user.totalRewards,
+      });
     } else {
       res
         .status(400)
@@ -659,13 +649,11 @@ const multiStreakRewardClaim = async (req, res, next) => {
       }
       user.streak.multiStreak.multiStreakReward[index] = 0;
       await user.save();
-      res
-        .status(200)
-        .json({
-          message: "Multi Streak Rewards claimed successfully",
-          multiStreak: user.streak.multiStreak,
-          totalRewards: user.totalRewards,
-        });
+      res.status(200).json({
+        message: "Multi Streak Rewards claimed successfully",
+        multiStreak: user.streak.multiStreak,
+        totalRewards: user.totalRewards,
+      });
     } else {
       res
         .status(400)
@@ -683,4 +671,3 @@ module.exports = {
   taskStreakRewardClaim,
   multiStreakRewardClaim,
 };
-

@@ -92,7 +92,7 @@ const updateLevel = (user, currentDateString) => {
 };
 
 const login = async (req, res, next) => {
-  let { name, refferedById, telegramId } = req.body;
+  let { name, referredById, telegramId } = req.body;
   try {
     name = name.trim();
     telegramId = telegramId.trim();
@@ -122,11 +122,11 @@ const login = async (req, res, next) => {
     }
 
     let referringUser = null;
-    if (refferedById) {
-      referringUser = await User.findOne({ refId: refferedById });
+    if (referredById) {
+      referringUser = await User.findOne({ refId: referredById });
 
       if (!referringUser) {
-        refferedById = ""; // Set to null if referring user not found
+        referredById = ""; // Set to null if referring user not found
         console.error("Referring user not found");
       }
     }
@@ -136,7 +136,7 @@ const login = async (req, res, next) => {
         name,
         telegramId,
         refId,
-        refferedById,
+        referredById,
         boosters: ["levelUp", "tap"],
         totalRewards: 500,
         referRewards: 0,

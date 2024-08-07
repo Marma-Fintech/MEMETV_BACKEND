@@ -14,7 +14,7 @@ router.post(
   celebrate({
     [Segments.BODY]: Joi.object().keys({
       name: Joi.string().required(),
-      refferedById: Joi.string().optional(),
+      referredById: Joi.string().optional(),
       telegramId: Joi.string().required(),
     }),
   }),

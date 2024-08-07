@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const { isValidObjectId } = mongoose;
 
 const levelUpBonuses = [
-  // 500, // Level 1 bonous, you reach 1000 its level2 you got level2 bonous points
+  // 500, // Level 1 bonus, you reach 1000 its level2 you got level2 bonus points
   1000, // Level 2 to Level 3
   5000, // Level 3 to Level 4
   10000, // Level 4 to Level 5
@@ -178,7 +178,7 @@ const userWatchRewards = async (req, res, next) => {
       name: user.name,
       telegramId: user.telegramId,
       refId: user.refId,
-      refferedById: user.refferedById,
+      referredById: user.referredById,
       totalRewards: user.totalRewards,
       level: user.level,
       dailyRewards: user.dailyRewards,
@@ -393,7 +393,7 @@ const popularUser = async (req, res, next) => {
   }
 };
 
-const yourRefferals = async (req, res, next) => {
+const yourReferrals = async (req, res, next) => {
   try {
     let { telegramId } = req.params;
     telegramId = telegramId.trim();
@@ -459,5 +459,5 @@ module.exports = {
   purchaseBooster,
   stakingRewards,
   popularUser,
-  yourRefferals,
+  yourReferrals,
 };
