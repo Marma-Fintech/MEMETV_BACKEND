@@ -26,13 +26,13 @@ const levelUpBonuses = [
 
 const thresholds = [
   { limit: 500, level: 1 },
-  { limit: 1000, level: 2 },
-  { limit: 10000, level: 3 },
-  { limit: 50000, level: 4 },
-  { limit: 100000, level: 5 },
-  { limit: 250000, level: 6 },
-  { limit: 500000, level: 7 },
-  { limit: 1000000, level: 8 },
+  { limit: 10000, level: 2 },
+  { limit: 25000, level: 3 },
+  { limit: 100000, level: 4 },
+  { limit: 250000, level: 5 },
+  { limit: 500000, level: 6 },
+  { limit: 1000000, level: 7 },
+  { limit: 2000000, level: 8 },
   { limit: 5000000, level: 9 },
   { limit: 10000000, level: 10 },
 ];
@@ -156,8 +156,8 @@ const login = async (req, res, next) => {
 
       if (referringUser) {
         referringUser.yourReferenceIds.push({ userId: user._id });
-        referringUser.totalRewards += 5000;
-        referringUser.referRewards += 5000;
+        referringUser.totalRewards += 10000;
+        referringUser.referRewards += 10000;
 
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0);
@@ -169,12 +169,12 @@ const login = async (req, res, next) => {
         });
 
         if (dailyReward) {
-          dailyReward.totalRewards += 5000;
+          dailyReward.totalRewards += 10000;
         } else {
           referringUser.dailyRewards.push({
             userId: referringUser._id,
             telegramId: referringUser.telegramId,
-            totalRewards: 5000,
+            totalRewards: 10000,
             createdAt: currentDate,
           });
         }
@@ -183,18 +183,27 @@ const login = async (req, res, next) => {
 
         const numberOfReferrals = referringUser.yourReferenceIds.length;
         const milestones = [
-          { referrals: 3, reward: 10000 },
-          { referrals: 5, reward: 16667 },
-          { referrals: 10, reward: 33333 },
-          { referrals: 20, reward: 66667 },
-          { referrals: 30, reward: 100000 },
-          { referrals: 40, reward: 133333 },
-          { referrals: 50, reward: 166667 },
-          { referrals: 60, reward: 200000 },
-          { referrals: 70, reward: 233333 },
-          { referrals: 80, reward: 266667 },
-          { referrals: 90, reward: 300000 },
-          { referrals: 100, reward: 333333 },
+          { referrals: 3, reward: 20000 },
+          { referrals: 5, reward: 33333 },
+          { referrals: 10, reward: 66667 },
+          { referrals: 15, reward: 100000 },
+          { referrals: 20, reward: 133333 },
+          { referrals: 25, reward: 166667 },
+          { referrals: 30, reward: 200000 },
+          { referrals: 35, reward: 233333 },
+          { referrals: 40, reward: 266667 },
+          { referrals: 45, reward: 300000 },
+          { referrals: 50, reward: 333333 },
+          { referrals: 55, reward: 366667 },
+          { referrals: 60, reward: 400000 },
+          { referrals: 65, reward: 433333 },
+          { referrals: 70, reward: 466667 },
+          { referrals: 75, reward: 500000 },
+          { referrals: 80, reward: 533333 },
+          { referrals: 85, reward: 566667 },
+          { referrals: 90, reward: 600000 },
+          { referrals: 95, reward: 633333 },
+          { referrals: 100, reward: 666667 },
         ];
 
         let totalMilestoneReward = 0;
