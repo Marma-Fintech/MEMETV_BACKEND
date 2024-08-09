@@ -335,7 +335,7 @@ const streak = async (req, res, next) => {
       name: user.name,
       telegramId: user.telegramId,
       refId: user.refId,
-      refferedById: user.refferedById,
+      referredById: user.referredById,
       totalRewards: user.totalRewards,
       dailyRewards: user.dailyRewards,
       streaks: user.streak,
