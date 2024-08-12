@@ -12,6 +12,18 @@ const generateRefId = () => {
   return result;
 };
 
+// const levelUpBonuses = [
+//   10, // Level 2 to Level 3
+//   20, // Level 3 to Level 4
+//   30, // Level 4 to Level 5
+//   40, // Level 5 to Level 6
+//   50, // Level 6 to Level 7
+//   60, // Level 7 to Level 8
+//   70, // Level 8 to Level 9
+//   80, // Level 9 to Level 10
+//   90, // Level 10 and above
+// ];
+
 const levelUpBonuses = [
   1000, // Level 2 to Level 3
   5000, // Level 3 to Level 4
@@ -219,6 +231,13 @@ const login = async (req, res, next) => {
         if (totalMilestoneReward > 0) {
           if (dailyReward) {
             dailyReward.totalRewards += totalMilestoneReward;
+          } else {
+            referringUser.dailyRewards.push({
+              userId: referringUser._id,
+              telegramId: referringUser.telegramId,
+              totalRewards: totalMilestoneReward,
+              createdAt: currentDate,
+            });
           }
         }
 
@@ -254,6 +273,7 @@ const login = async (req, res, next) => {
     next(err);
   }
 };
+
 
 const userDetails = async (req, res, next) => {
   try {
