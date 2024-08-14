@@ -81,27 +81,29 @@ const updateLevel = (user, currentDateString) => {
 
   // Update dailyRewards with the new level-up points
   if (newLevelUpPoints > 0) {
-    let lastDailyReward = user.dailyRewards[user.dailyRewards.length - 1];
-    const lastRewardDateString = lastDailyReward
-      ? new Date(lastDailyReward.createdAt).toISOString().split("T")[0]
-      : null;
+    const today = new Date(currentDateString);
+    today.setUTCHours(0, 0, 0, 0);
 
-    if (lastRewardDateString !== currentDateString) {
-      // Create a new dailyReward entry for today
+    let dailyReward = user.dailyRewards.find((dr) => {
+      const rewardDate = new Date(dr.createdAt);
+      rewardDate.setUTCHours(0, 0, 0, 0);
+      return rewardDate.getTime() === today.getTime();
+    });
+
+    if (dailyReward) {
+      dailyReward.totalRewards += newLevelUpPoints;
+    } else {
       user.dailyRewards.push({
         userId: user._id,
         telegramId: user.telegramId,
         totalRewards: newLevelUpPoints,
         userStaking: false,
-        createdAt: new Date(),
+        createdAt: today,
       });
-    } else {
-      // Update the existing entry for today
-      lastDailyReward.totalRewards += newLevelUpPoints;
-      lastDailyReward.updatedAt = new Date();
     }
   }
 };
+
 
 const login = async (req, res, next) => {
   let { name, referredById, telegramId } = req.body;
@@ -111,11 +113,8 @@ const login = async (req, res, next) => {
     const refId = generateRefId(); // Implement this function to generate a refId
 
     let user = await User.findOne({ telegramId });
-
     const currentDate = new Date();
-    const currentDay = currentDate.getUTCDate();
-    const currentMonth = currentDate.getUTCMonth();
-    const currentYear = currentDate.getUTCFullYear();
+    const currentDateString = currentDate.toISOString().split("T")[0]; // e.g., "2024-08-13"
 
     if (currentDate > userEndDate) {
       if (!user) {
@@ -168,80 +167,41 @@ const login = async (req, res, next) => {
 
       if (referringUser) {
         referringUser.yourReferenceIds.push({ userId: user._id });
-        referringUser.totalRewards += 10000;
-        referringUser.referRewards += 10000;
+        const referralReward = 10000;
+
+        referringUser.totalRewards += referralReward;
+        referringUser.referRewards += referralReward;
+
+        const milestoneRewards = calculateMilestoneRewards(referringUser.yourReferenceIds.length);
+        referringUser.referRewards += milestoneRewards; // Add milestone rewards to referRewards
+        referringUser.totalRewards += milestoneRewards;
 
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0);
+        const todayString = today.toISOString().split("T")[0];
 
-        const dailyReward = referringUser.dailyRewards.find((dr) => {
+        let dailyReward = referringUser.dailyRewards.find((dr) => {
           const rewardDate = new Date(dr.createdAt);
           rewardDate.setUTCHours(0, 0, 0, 0);
-          return rewardDate.getTime() === today.getTime();
+          return rewardDate.toISOString().split("T")[0] === todayString;
         });
 
+        const totalDailyRewards = referralReward + milestoneRewards;
+
         if (dailyReward) {
-          dailyReward.totalRewards += 10000;
+          dailyReward.totalRewards += totalDailyRewards;
         } else {
           referringUser.dailyRewards.push({
             userId: referringUser._id,
             telegramId: referringUser.telegramId,
-            totalRewards: 10000,
-            createdAt: currentDate,
+            totalRewards: totalDailyRewards,
+            createdAt: today,
           });
         }
 
         referringUser.boosters.push("2x");
 
-        const numberOfReferrals = referringUser.yourReferenceIds.length;
-        const milestones = [
-          { referrals: 3, reward: 20000 },
-          { referrals: 5, reward: 33333 },
-          { referrals: 10, reward: 66667 },
-          { referrals: 15, reward: 100000 },
-          { referrals: 20, reward: 133333 },
-          { referrals: 25, reward: 166667 },
-          { referrals: 30, reward: 200000 },
-          { referrals: 35, reward: 233333 },
-          { referrals: 40, reward: 266667 },
-          { referrals: 45, reward: 300000 },
-          { referrals: 50, reward: 333333 },
-          { referrals: 55, reward: 366667 },
-          { referrals: 60, reward: 400000 },
-          { referrals: 65, reward: 433333 },
-          { referrals: 70, reward: 466667 },
-          { referrals: 75, reward: 500000 },
-          { referrals: 80, reward: 533333 },
-          { referrals: 85, reward: 566667 },
-          { referrals: 90, reward: 600000 },
-          { referrals: 95, reward: 633333 },
-          { referrals: 100, reward: 666667 },
-        ];
-
-        let totalMilestoneReward = 0;
-        for (const milestone of milestones) {
-          if (numberOfReferrals === milestone.referrals) {
-            totalMilestoneReward += milestone.reward;
-          }
-        }
-
-        referringUser.totalRewards += totalMilestoneReward;
-        referringUser.referRewards += totalMilestoneReward;
-
-        if (totalMilestoneReward > 0) {
-          if (dailyReward) {
-            dailyReward.totalRewards += totalMilestoneReward;
-          } else {
-            referringUser.dailyRewards.push({
-              userId: referringUser._id,
-              telegramId: referringUser.telegramId,
-              totalRewards: totalMilestoneReward,
-              createdAt: currentDate,
-            });
-          }
-        }
-
-        updateLevel(referringUser, currentDate.toISOString().split("T")[0]);
+        updateLevel(referringUser, currentDateString);
 
         await referringUser.save();
       }
@@ -252,9 +212,9 @@ const login = async (req, res, next) => {
       const lastLoginYear = lastLoginDate.getUTCFullYear();
 
       if (
-        currentYear > lastLoginYear ||
-        currentMonth > lastLoginMonth ||
-        currentDay > lastLoginDay
+        currentDate.getUTCFullYear() > lastLoginYear ||
+        currentDate.getUTCMonth() > lastLoginMonth ||
+        currentDate.getUTCDate() > lastLoginDay
       ) {
         user.boosters.push("levelUp", "tap");
       }
@@ -263,7 +223,7 @@ const login = async (req, res, next) => {
       await user.save();
     }
 
-    updateLevel(user, currentDate.toISOString().split("T")[0]);
+    updateLevel(user, currentDateString);
 
     res.status(201).json({
       message: `User logged in successfully`,
@@ -273,6 +233,43 @@ const login = async (req, res, next) => {
     next(err);
   }
 };
+
+const calculateMilestoneRewards = (numberOfReferrals) => {
+  const milestones = [
+    { referrals: 3, reward: 20000 },
+    { referrals: 5, reward: 33333 },
+    { referrals: 10, reward: 66667 },
+    { referrals: 15, reward: 100000 },
+    { referrals: 20, reward: 133333 },
+    { referrals: 25, reward: 166667 },
+    { referrals: 30, reward: 200000 },
+    { referrals: 35, reward: 233333 },
+    { referrals: 40, reward: 266667 },
+    { referrals: 45, reward: 300000 },
+    { referrals: 50, reward: 333333 },
+    { referrals: 55, reward: 366667 },
+    { referrals: 60, reward: 400000 },
+    { referrals: 65, reward: 433333 },
+    { referrals: 70, reward: 466667 },
+    { referrals: 75, reward: 500000 },
+    { referrals: 80, reward: 533333 },
+    { referrals: 85, reward: 566667 },
+    { referrals: 90, reward: 600000 },
+    { referrals: 95, reward: 633333 },
+    { referrals: 100, reward: 666667 },
+  ];
+
+  return milestones.reduce((totalReward, milestone) => {
+    if (numberOfReferrals >= milestone.referrals) {
+      return totalReward + milestone.reward;
+    }
+    return totalReward;
+  }, 0);
+};
+
+
+
+
 
 
 const userDetails = async (req, res, next) => {
