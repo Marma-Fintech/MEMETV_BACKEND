@@ -66,7 +66,7 @@ router.get(
 );
 
 router.get(
-  "yourReferrals",
+  "/yourReferrals/:telegramId",
   celebrate({
     [Segments.PARAMS]: Joi.object().keys({
       telegramId: Joi.string().required(),
