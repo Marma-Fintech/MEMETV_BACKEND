@@ -5,7 +5,8 @@ const watchStreakReward = [100, 200, 400, 800, 1600, 3200, 6400];
 const referStreakReward = [1000, 2000, 3000, 5000, 10000, 15000, 25000];
 const taskStreakReward = [100, 200, 400, 800, 1600, 3200, 6400];
 
-const multiStreakReward = [2100, 4200, 8400, 16800, 33600, 67200];
+const multiStreakReward = [1300, 2100, 4200, 8400, 16800, 33600, 67200];
+let streakOfStreakCount = 0;
 const distributionStartDate = new Date(process.env.DISTRIBUTION_START_DATE);
 const distributionEndDate = new Date(process.env.DISTRIBUTION_END_DATE);
 
@@ -19,7 +20,6 @@ const calculateDayDifference = async (lastDate) => {
   const differenceInTime = currentDate.getTime() - lastDay.getTime();
   // Convert the difference from milliseconds to days
   const differenceInDays = differenceInTime / (1000 * 3600 * 24);
-  console.log("CalculateDay",differenceInDays);
   return differenceInDays;
 };
 
@@ -43,8 +43,6 @@ const calculateLoginStreak = async (user, lastLoginDate, differenceInDays) => {
       user.streak.loginStreak.loginStreakCount == 0 ||
       (differenceInDays % 7) + 1 === 1
     ) {
-
-      console.log("new number");
       user.streak.loginStreak.loginStreakCount = 1;
       user.streak.loginStreak.loginStreakDate = new Date();
       for (i = 0; i < user.streak.loginStreak.loginStreakReward.length; i++) {
@@ -53,7 +51,6 @@ const calculateLoginStreak = async (user, lastLoginDate, differenceInDays) => {
         user.streak.loginStreak.loginStreakReward[i] = 0;
       }
     } else {
-      console.log("Adds new count");
       user.streak.loginStreak.loginStreakCount++;
       user.streak.loginStreak.loginStreakDate = new Date();
     }
@@ -129,7 +126,7 @@ const calculateWatchStreak = async (
         return true;
       } else {
         console.log("Already in a Watch Streak");
-        // same day login and no WATCH STREAKreward will be claimed
+        // same day login and no WATCH STREAK reward will be claimed
         return true;
       }
     } else {
@@ -154,14 +151,18 @@ const calculateReferStreak = async (user, todaysLogin, differenceInDays) => {
     let isOnReferStreak = false;
     const currentDate = new Date();
     const currentDay = currentDate.getUTCDate();
+
+    
     // in the same day user has referred someone
     if (lastRefDay == currentDay) {
       // for loop to check a user has already maintained a refer streak
       for (i = refUsers.length - 1; i >= 0; i--) {
-        let refDay = refUsers[i].createdAt.getUTCDate();
-        if (refDay == lastRefDay) {
+        let refDay = refUsers[i].createdAt;
+        if (refDay.getUTCDate() == lastRefDay) {
           continue;
-        } else if (refDay + 1 == currentDate) {
+        } else if ((await calculateDayDifference(
+          refDay
+        )) == 1) {
           isOnReferStreak = true;
           break;
         } else {
@@ -175,8 +176,8 @@ const calculateReferStreak = async (user, todaysLogin, differenceInDays) => {
         user.streak.referStreak.referStreakCount == 0
       ) {
         if (
-          (isOnReferStreak && user.streak.referStreak.referStreakCount === 7) ||
-          (differenceInDays % 7) + 1 === 1
+          (isOnReferStreak && (user.streak.referStreak.referStreakCount === 7) ||
+          (differenceInDays % 7) + 1 === 1)
         ) {
           user.streak.referStreak.referStreakCount = 1;
           user.streak.referStreak.referStreakDate = new Date();
@@ -189,12 +190,26 @@ const calculateReferStreak = async (user, todaysLogin, differenceInDays) => {
               user.streak.referStreak.referStreakReward[i];
             user.streak.referStreak.referStreakReward[i] = 0;
           }
-        } else {
+        } else if(isOnReferStreak) {
           user.streak.referStreak.referStreakCount++;
           user.streak.referStreak.referStreakDate = new Date();
         }
+        else{
+          user.streak.referStreak.referStreakCount = 1;
+          user.streak.referStreak.referStreakDate = new Date();
+          for (
+            i = 0;
+            i < user.streak.referStreak.referStreakReward.length;
+            i++
+          ) {
+            user.streak.referStreak.unClaimedReferStreakReward +=
+              user.streak.referStreak.referStreakReward[i];
+            user.streak.referStreak.referStreakReward[i] = 0;
+          }
+        }
       } else {
-        return false;
+        console.log("Already in a Refer Streak");
+        return true;
       }
 
       const rewardAmount =
@@ -233,7 +248,7 @@ const calculateTaskStreak = async (user, todaysLogin, differenceInDays) => {
       lastTaskStreakDay != currentDay ||
       user.streak.taskStreak.taskStreakCount == 0
     ) {
-      if (
+      if(
         user.streak.taskStreak.taskStreakCount === 7 ||
         (await calculateDayDifference(
           user.streak.taskStreak.taskStreakDate
@@ -245,12 +260,16 @@ const calculateTaskStreak = async (user, todaysLogin, differenceInDays) => {
         for (i = 0; i < user.streak.taskStreak.taskStreakReward.length; i++) {
           user.streak.taskStreak.unClaimedTaskStreakReward +=
             user.streak.taskStreak.taskStreakReward[i];
-          user.streak.taskStreak.taskStreakReward[i];
+          user.streak.taskStreak.taskStreakReward[i]=0;
         }
       } else {
         user.streak.taskStreak.taskStreakCount++;
         user.streak.taskStreak.taskStreakDate = new Date();
       }
+    }
+    else{
+      console.log("Already in a Task Streak");
+      return true;
     }
     const rewardAmount =
       taskStreakReward[user.streak.taskStreak.taskStreakCount - 1];
@@ -266,12 +285,12 @@ const calculateTaskStreak = async (user, todaysLogin, differenceInDays) => {
     return false;
   }
 };
+//function to calculate streaks(login, watch, refer, task)
 const streak = async (req, res, next) => {
   try {
-    const { telegramId, userWatchSeconds, boosterPoints = 0 } = req.body;
+    const { telegramId, userWatchSeconds} = req.body;
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
-    // console.log(user);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -288,7 +307,6 @@ const streak = async (req, res, next) => {
       currentDate.getTime() - distributionStartDate.getTime();
     // Convert the difference from milliseconds to days
     const differenceInDays = differenceInTime / (1000 * 3600 * 24);
-    console.log(differenceInDays);
     //bool to find out whether the user has logged in today
     const login = await calculateLoginStreak(
       user,
@@ -303,6 +321,111 @@ const streak = async (req, res, next) => {
     );
     const refer = await calculateReferStreak(user, login, differenceInDays);
     const task = await calculateTaskStreak(user, login, differenceInDays);
+
+    await user.save();
+    res.status(200).json({
+      message: "Streak rewards updated successfully",
+      name: user.name,
+      telegramId: user.telegramId,
+      loginStreak: user.streak.loginStreak,
+      watchStreak: user.streak.watchStreak,
+      referStreak: user.streak.referStreak,
+      taskStreak: user.streak.taskStreak
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+const calculateMultiStreak = async (
+  user,
+  todaysLogin,
+  todaysWatch,
+  todaysRefer,
+  todaysTask,
+  differenceInDays
+) => {
+  if(todaysLogin){
+      if ((await calculateDayDifference(user.streak.multiStreak.multiStreakDate)) != 0 || user.streak.multiStreak.multiStreakCount == 0) {
+        if (await calculateDayDifference(user.streak.multiStreak.multiStreakDate)>1){
+          console.log("inside");
+          for (i = 0; i < user.streak.multiStreak.multiStreakReward.length; i++) {
+            user.streak.multiStreak.unClaimedMultiStreakReward +=
+              user.streak.multiStreak.multiStreakReward[i];
+            user.streak.multiStreak.multiStreakReward[i] = 0;
+          }
+          user.streak.multiStreak.multiStreakCount = 1;
+          streakOfStreakCount=0;
+        } else if (
+          user.streak.multiStreak.multiStreakCount == 7 ||
+          (differenceInDays % 7) + 1 === 1
+        ){
+          for (i = 0; i < user.streak.multiStreak.multiStreakReward.length; i++) {
+            user.streak.multiStreak.unClaimedMultiStreakReward +=
+              user.streak.multiStreak.multiStreakReward[i];
+            user.streak.multiStreak.multiStreakReward[i] = 0;
+          }
+          streakOfStreakCount++;
+          user.streak.multiStreak.multiStreakCount = 1;
+          user.streak.multiStreak.multiStreakDate = new Date();
+  
+        } else {
+          user.streak.multiStreak.multiStreakCount++;
+          streakOfStreakCount++;
+          user.streak.multiStreak.multiStreakDate = new Date();
+        }
+        for(i=0 ;i<user.streak.multiStreak.multiStreakCount;i++){
+          user.boosters.push("5X");
+        }
+        const rewardAmount =
+          multiStreakReward[user.streak.multiStreak.multiStreakCount-1];
+        //add rewards to multi streak rewards
+        user.streak.multiStreak.multiStreakReward[
+          user.streak.multiStreak.multiStreakCount - 1
+        ] = rewardAmount;
+        console.log("streak of streak count", streakOfStreakCount);
+        if(streakOfStreakCount>1){
+          const previousSOSRewards = user.streak.multiStreak.streakOfStreakRewards.length==0?0:user.streak.multiStreak.streakOfStreakRewards[user.streak.multiStreak.streakOfStreakRewards.length-1];
+          user.streak.multiStreak.streakOfStreakRewards.push(previousSOSRewards+rewardAmount);
+        }
+        else if(streakOfStreakCount==0){
+          for(i=0;i<user.streak.multiStreak.streakOfStreakRewards.length;i++){
+            user.streak.multiStreak.unClaimedStreakOfStreakRewards = Number(user.streak.multiStreak.unClaimedStreakOfStreakRewards) + Number(user.streak.multiStreak.streakOfStreakRewards[i]);
+            user.streak.multiStreak.streakOfStreakRewards[i]=0;
+          }
+        }
+        return true;
+      }
+      else{
+        console.log("Already in a Multi Streak");
+        return true;
+      }
+    }
+};
+
+//function to calculate streak of streaks(multi and sos)
+const streakOfStreak = async (req, res, next) => {
+  try {
+    const { telegramId} = req.body;
+    // Find the user by telegramId
+    const user = await User.findOne({ telegramId });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    const lastLoginTime = user.lastLogin;
+    let currentDate = new Date();
+    if (currentDate >= distributionEndDate) {
+      console.log("Distribution Completed");
+      res.status(400).json({ message: "Distribution Complete" });
+    }
+    const currentDay = currentDate.toISOString().split("T")[0];
+    currentDate = new Date(currentDay);
+    // Calculate the difference in milliseconds
+    const differenceInTime =
+      currentDate.getTime() - distributionStartDate.getTime();
+    // Convert the difference from milliseconds to days
+    const differenceInDays = differenceInTime / (1000 * 3600 * 24);
 
     const todaysLogin =
       (await user.streak.loginStreak.loginStreakDate
@@ -321,86 +444,43 @@ const streak = async (req, res, next) => {
         .toISOString()
         .split("T")[0]) == currentDay;
 
-    const multiStreak = await calculateMultiStreak(
-      user,
-      todaysLogin,
-      todaysWatch,
-      todaysRefer,
-      todaysTask,
-      differenceInDays
-    );
-    await user.save();
-    res.status(200).json({
-      message: "Streak rewards updated successfully",
-      name: user.name,
-      telegramId: user.telegramId,
-      refId: user.refId,
-      referredById: user.referredById,
-      totalRewards: user.totalRewards,
-      dailyRewards: user.dailyRewards,
-      streaks: user.streak,
-      lastLogin: user.lastLogin,
-    });
+    if(todaysLogin && todaysWatch && todaysRefer && todaysTask){
+      const multiStreak = await calculateMultiStreak(
+        user,
+        todaysLogin,
+        todaysWatch,
+        todaysRefer,
+        todaysTask,
+        differenceInDays
+      );
+  
+      await user.save();
+      res.status(200).json({
+        message: "Streak of Streak rewards updated successfully",
+        name: user.name,
+        telegramId: user.telegramId,
+        streakOfStreak: user.streak.multiStreak
+      });
+    }
+    else{
+      await user.save();
+      res
+        .status(400)
+        .json({ message: "User has not completed all streaks" });
+    }
+
   } catch (err) {
     next(err);
   }
 };
 
-const calculateMultiStreak = async (
-  user,
-  todaysLogin,
-  todaysWatch,
-  todaysRefer,
-  todaysTask,
-  differenceInDays
-) => {
-  if (
-    (await calculateDayDifference(user.streak.multiStreak.multiStreakDate)) >= 1 || user.streak.multiStreak.multiStreakCount == 0) {
-    if (todaysLogin) {
-      if (!todaysLogin || !todaysWatch || !todaysRefer || !todaysTask) {
-        user.streak.multiStreak.multiStreakCount = 0;
-      } else if (
-        user.streak.multiStreak.multiStreakCount == 7 ||
-        (differenceInDays % 7) + 1 === 1
-      ) {
-        user.streak.multiStreak.multiStreakCount = 2;
-        user.streak.multiStreak.multiStreakDate = new Date();
-      } else {
-        user.streak.multiStreak.multiStreakCount++;
-        user.streak.multiStreak.multiStreakDate = new Date();
-      }
-      for(i=0 ;i<user.streak.multiStreak.multiStreakCount;i++){
-        user.boosters.push("5X");
-      }
-      const rewardAmount =
-        multiStreakReward[user.streak.multiStreak.multiStreakCount - 2] ===
-        undefined
-          ? 0
-          : multiStreakReward[user.streak.multiStreak.multiStreakCount - 2];
-      if (user.streak.multiStreak.multiStreakCount == 0) {
-        for (i = 0; i < user.streak.multiStreak.multiStreakReward.length; i++) {
-          user.streak.multiStreak.unClaimedMultiStreakReward +=
-            user.streak.multiStreak.multiStreakReward[i];
-          user.streak.multiStreak.multiStreakReward[i] = 0;
-        }
-      } else {
-        user.streak.multiStreak.multiStreakReward[
-          user.streak.multiStreak.multiStreakCount - 1
-        ] = rewardAmount;
-      }
-      return true;
-    } else {
-      return false;
-    }
-  }
-};
+
 
 const loginStreakRewardClaim = async (req, res, next) => {
   try {
     const { telegramId, index } = req.body;
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
-    // console.log(user);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -455,7 +535,6 @@ const watchStreakRewardClaim = async (req, res, next) => {
     const { telegramId, index } = req.body;
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
-    // console.log(user);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -510,7 +589,6 @@ const referStreakRewardClaim = async (req, res, next) => {
     const { telegramId, index } = req.body;
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
-    // console.log(user);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -565,7 +643,6 @@ const taskStreakRewardClaim = async (req, res, next) => {
     const { telegramId, index } = req.body;
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
-    // console.log(user);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -620,7 +697,6 @@ const multiStreakRewardClaim = async (req, res, next) => {
     const { telegramId, index } = req.body;
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
-    // console.log(user);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -669,12 +745,141 @@ const multiStreakRewardClaim = async (req, res, next) => {
     next(err);
   }
 };
+
+const streakOfStreakRewardClaim = async (req, res, next) => {
+  try {
+    const { telegramId, index } = req.body;
+    // Find the user by telegramId
+    const user = await User.findOne({ telegramId });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    const currentDate = new Date();
+    if (user.streak.multiStreak.streakOfStreakRewards != 0) {
+      const rewardAmount = user.streak.multiStreak.streakOfStreakRewards[index];
+      // add to total reward of users
+      user.totalRewards += rewardAmount;
+      // add to streak reward of users
+      user.streakRewards += rewardAmount;
+
+      // Check if there's already an entry for today in dailyRewards
+      let dailyReward = await user.dailyRewards.find(
+        (reward) =>
+          reward.createdAt.toISOString().split("T")[0] ===
+          currentDate.toISOString().split("T")[0]
+      );
+      if (dailyReward) {
+        // Update the existing entry for today
+        user.dailyRewards[user.dailyRewards.length - 1].totalRewards +=
+          rewardAmount;
+      } else {
+        // Create a new entry for today
+        user.dailyRewards.push({
+          userId: user._id,
+          telegramId: user.telegramId,
+          totalRewards: rewardAmount,
+          createdAt: new Date(),
+        });
+      }
+      user.streak.multiStreak.streakOfStreakRewards[index] = 0;
+      await user.save();
+      res
+        .status(200)
+        .json({
+          message: "Streak of Streak Rewards claimed successfully",
+          multiStreak: user.streak.multiStreak,
+          totalRewards: user.totalRewards,
+        });
+    } else {
+      res
+        .status(400)
+        .json({ message: "User has no Streak of Streak rewards to claim" });
+    }
+  } catch (err) {
+    next(err);
+  }
+};
+
+const unClaimedStreakRewardsClaim = async (req, res, next) => {
+  try {
+    const { telegramId} = req.body;
+    // Find the user by telegramId
+    const user = await User.findOne({ telegramId });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    const currentDate = new Date();
+    const unClaimedLoginReward = Number(user.streak.loginStreak.unClaimedLoginStreakReward);
+    const unClaimedWatchReward = Number(user.streak.watchStreak.unClaimedWatchStreakReward);
+    const unClaimedReferReward = Number(user.streak.referStreak.unClaimedReferStreakReward);
+    const unClaimedTaskReward = Number(user.streak.taskStreak.unClaimedTaskStreakReward);
+    const unClaimedMultiReward = Number(user.streak.multiStreak.unClaimedMultiStreakReward);
+    const unClaimedSOSReward = Number(user.streak.multiStreak.unClaimedStreakOfStreakRewards);
+    if (unClaimedLoginReward !=0 || unClaimedWatchReward != 0 || unClaimedReferReward != 0 || unClaimedTaskReward !=0 || unClaimedMultiReward !=0 || unClaimedSOSReward !=0) {
+      const rewardAmount = unClaimedLoginReward + unClaimedWatchReward + unClaimedReferReward + unClaimedTaskReward + unClaimedMultiReward + unClaimedSOSReward;
+      // add to total reward of users
+      user.totalRewards += rewardAmount;
+      // add to streak reward of users
+      user.streakRewards += rewardAmount;
+
+      // Check if there's already an entry for today in dailyRewards
+      let dailyReward = await user.dailyRewards.find(
+        (reward) =>
+          reward.createdAt.toISOString().split("T")[0] ===
+          currentDate.toISOString().split("T")[0]
+      );
+      if (dailyReward) {
+        // Update the existing entry for today
+        user.dailyRewards[user.dailyRewards.length - 1].totalRewards +=
+          rewardAmount;
+      } else {
+        // Create a new entry for today
+        user.dailyRewards.push({
+          userId: user._id,
+          telegramId: user.telegramId,
+          totalRewards: rewardAmount,
+          createdAt: new Date(),
+        });
+      }
+
+      user.streak.loginStreak.unClaimedLoginStreakReward = 0;
+      user.streak.watchStreak.unClaimedWatchStreakReward = 0;
+      user.streak.referStreak.unClaimedReferStreakReward = 0;
+      user.streak.taskStreak.unClaimedTaskStreakReward = 0;
+      user.streak.multiStreak.unClaimedMultiStreakReward = 0;
+      user.streak.multiStreak.unClaimedStreakOfStreakRewards = 0;
+      await user.save();
+      res
+        .status(200)
+        .json({
+          message: "All Unclaimed Streak Rewards claimed successfully",
+          totalRewards: user.totalRewards,
+          streakRewards: user.streakRewards,
+          unClaimedLoginReward: user.streak.loginStreak.unClaimedLoginStreakReward,
+          unClaimedWatchReward: user.streak.watchStreak.unClaimedWatchStreakReward,
+          unClaimedReferReward: user.streak.referStreak.unClaimedReferStreakReward,
+          unClaimedTaskReward: user.streak.taskStreak.unClaimedTaskStreakReward,
+          unClaimedMultiReward: user.streak.multiStreak.unClaimedMultiStreakReward,
+          unClaimedSOSReward: user.streak.multiStreak.unClaimedStreakOfStreakRewards,
+        });
+    } else {
+      res
+        .status(400)
+        .json({ message: "User has no Unclaimed Streak rewards to claim" });
+    }
+  } catch (err) {
+    next(err);
+  }
+};
 module.exports = {
   streak,
+  streakOfStreak,
   loginStreakRewardClaim,
   watchStreakRewardClaim,
   referStreakRewardClaim,
   taskStreakRewardClaim,
   multiStreakRewardClaim,
+  streakOfStreakRewardClaim,
+  unClaimedStreakRewardsClaim
 };
 

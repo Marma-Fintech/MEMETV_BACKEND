@@ -3,11 +3,14 @@ const router = express.Router();
 const { celebrate, Joi, errors, Segments } = require("celebrate");
 const {
   streak,
+  streakOfStreak,
   loginStreakRewardClaim,
   watchStreakRewardClaim,
   referStreakRewardClaim,
   taskStreakRewardClaim,
   multiStreakRewardClaim,
+  streakOfStreakRewardClaim,
+  unClaimedStreakRewardsClaim
 } = require("../controllers/userStreakController");
 router.post(
   "/streak",
@@ -18,6 +21,15 @@ router.post(
     }),
   }),
   streak
+);
+router.post(
+  "/streakOfStreak",
+  celebrate({
+    [Segments.BODY]: Joi.object().keys({
+      telegramId: Joi.string().required(),
+    }),
+  }),
+  streakOfStreak
 );
 router.post(
   "/loginStreakRewardClaim",
@@ -68,6 +80,27 @@ router.post(
     }),
   }),
   multiStreakRewardClaim
+);
+
+router.post(
+  "/streakOfStreakRewardClaim",
+  celebrate({
+    [Segments.BODY]: Joi.object().keys({
+      telegramId: Joi.string().required(),
+      index: Joi.number().required(),
+    }),
+  }),
+  streakOfStreakRewardClaim
+);
+
+router.post(
+  "/unClaimedStreakRewardsClaim",
+  celebrate({
+    [Segments.BODY]: Joi.object().keys({
+      telegramId: Joi.string().required()
+    }),
+  }),
+  unClaimedStreakRewardsClaim
 );
 router.use(errors());
 module.exports = router;

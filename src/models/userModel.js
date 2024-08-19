@@ -168,10 +168,18 @@ const userSchema = mongoose.Schema(
         unClaimedMultiStreakReward: {
           type: Number,
           default: 0,
+        },
+        streakOfStreakRewards:[{
+          type: Number,
+          default: 0,
+        }],
+        unClaimedStreakOfStreakRewards:{
+          type: Number,
+          default: 0,
         }
       },
     },
-    yourReferenceIds: [
+yourReferenceIds: [
       {
         userId: {
           type: mongoose.Schema.Types.ObjectId,
