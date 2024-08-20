@@ -1,4 +1,5 @@
 const User = require("../models/userModel");
+const logger = require('../helpers/logger');
 
 // Function to generate a 5-character alphanumeric identifier
 const generateRefId = () => {
@@ -104,7 +105,6 @@ const updateLevel = (user, currentDateString) => {
   }
 };
 
-
 const login = async (req, res, next) => {
   let { name, referredById, telegramId } = req.body;
   try {
@@ -118,12 +118,14 @@ const login = async (req, res, next) => {
 
     if (currentDate > userEndDate) {
       if (!user) {
+        logger.warn(`Attempted to create new user after end date: ${currentDate}`);
         return res.status(403).json({
           message: "No new users can be created after the end date",
         });
       } else {
         user.lastLogin = currentDate;
         await user.save();
+        logger.info(`User ${user.name} logged in successfully after end date`);
         return res.status(201).json({
           message: "User logged in successfully",
           user,
@@ -138,7 +140,7 @@ const login = async (req, res, next) => {
 
       if (!referringUser) {
         referredById = ""; // Set to null if referring user not found
-        console.error("Referring user not found");
+        logger.error(`Referring user not found for refId: ${referredById}`);
       }
     }
 
@@ -164,6 +166,7 @@ const login = async (req, res, next) => {
       });
 
       await user.save();
+      logger.info(`New user ${user.name} created successfully`);
 
       if (referringUser) {
         referringUser.yourReferenceIds.push({ userId: user._id });
@@ -204,6 +207,7 @@ const login = async (req, res, next) => {
         updateLevel(referringUser, currentDateString);
 
         await referringUser.save();
+        logger.info(`User ${referringUser.name} referred a new user and received rewards`);
       }
     } else {
       const lastLoginDate = new Date(user.lastLogin);
@@ -221,6 +225,7 @@ const login = async (req, res, next) => {
 
       user.lastLogin = currentDate;
       await user.save();
+      logger.info(`User ${user.name} logged in successfully`);
     }
 
     updateLevel(user, currentDateString);
@@ -230,9 +235,11 @@ const login = async (req, res, next) => {
       user,
     });
   } catch (err) {
+    logger.error(`Error during login process: ${err.message}`);
     next(err);
   }
 };
+
 
 const calculateMilestoneRewards = (numberOfReferrals) => {
   const milestones = [
@@ -268,10 +275,6 @@ const calculateMilestoneRewards = (numberOfReferrals) => {
 };
 
 
-
-
-
-
 const userDetails = async (req, res, next) => {
   try {
     let { telegramId } = req.params;
@@ -279,18 +282,24 @@ const userDetails = async (req, res, next) => {
     // Trim leading and trailing spaces
     telegramId = telegramId.trim();
 
+    logger.info(`Received request for user details with telegramId: ${telegramId}`);
+
     // Find the user detail document for the given telegramId
     const userDetail = await User.findOne({ telegramId: telegramId });
 
     // Check if user detail was found
     if (!userDetail) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
+
+    logger.info(`User details retrieved successfully for telegramId: ${telegramId}`);
 
     // Return the user details in the response
     return res.status(200).json(userDetail);
   } catch (error) {
     // Handle any errors that occur
+    logger.error(`Error retrieving user details for telegramId: ${telegramId} - ${error.message}`);
     return res
       .status(500)
       .json({ message: "An error occurred", error: error.message });
@@ -304,18 +313,21 @@ const userGameRewards = async (req, res, next) => {
     // Get the current date and time
     const now = new Date();
 
+    logger.info(`Received request to add game rewards for user with telegramId: ${telegramId}`);
+
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
 
     if (!user) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
 
     // Check if the current date is past the userEndDate
     if (now > userEndDate) {
+      logger.warn(`User with telegramId: ${telegramId} has reached the end date. No rewards or boosters can be added.`);
       return res.status(403).json({
-        message:
-          "User has reached the end date. No rewards or boosters can be added.",
+        message: "User has reached the end date. No rewards or boosters can be added.",
         user,
       });
     }
@@ -323,6 +335,7 @@ const userGameRewards = async (req, res, next) => {
     // Push new boosters into the existing boosters array
     if (boosters && boosters.length > 0) {
       user.boosters.push(...boosters);
+      logger.info(`Boosters added for user with telegramId: ${telegramId}`);
     }
 
     // Ensure gamePoints is a number
@@ -335,6 +348,8 @@ const userGameRewards = async (req, res, next) => {
       // Update gameRewards
       user.gameRewards.gamePoints += pointsToAdd;
       user.gameRewards.createdAt = now; // Update createdAt to the current date and time
+
+      logger.info(`Added ${pointsToAdd} game points to user with telegramId: ${telegramId}`);
     }
 
     const currentDateString = now.toISOString().split("T")[0]; // "YYYY-MM-DD"
@@ -354,10 +369,12 @@ const userGameRewards = async (req, res, next) => {
         userStaking: false,
         createdAt: now,
       });
+      logger.info(`Created new daily reward entry for user with telegramId: ${telegramId}`);
     } else {
       // Update the existing entry for today
       lastDailyReward.totalRewards += pointsToAdd;
       lastDailyReward.updatedAt = now;
+      logger.info(`Updated daily reward entry for user with telegramId: ${telegramId}`);
     }
 
     // Update the user's level and levelUpRewards based on the new totalRewards
@@ -366,13 +383,15 @@ const userGameRewards = async (req, res, next) => {
     // Save the updated user document
     await user.save();
 
-    return res
-      .status(200)
-      .json({ message: "Boosters and gamePoints added successfully", user });
+    logger.info(`Successfully added boosters and gamePoints for user with telegramId: ${telegramId}`);
+
+    return res.status(200).json({ message: "Boosters and gamePoints added successfully", user });
   } catch (err) {
+    logger.error(`Error processing game rewards for user with telegramId: ${telegramId} - ${err.message}`);
     next(err);
   }
 };
+
 
 const purchaseGameCards = async (req, res, next) => {
   try {
@@ -381,15 +400,19 @@ const purchaseGameCards = async (req, res, next) => {
     // Get the current date and time
     const now = new Date();
 
+    logger.info(`Received request to purchase game cards for user with telegramId: ${telegramId}`);
+
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
 
     if (!user) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
 
     // Check if the current date is past the userEndDate
     if (now > userEndDate) {
+      logger.warn(`User with telegramId: ${telegramId} has reached the end date. No purchases can be made.`);
       return res.status(403).json({
         message: "User has reached the end date. No purchases can be made.",
         user,
@@ -400,10 +423,7 @@ const purchaseGameCards = async (req, res, next) => {
     const pointsToDeduct = Number(gamePoints) || 0;
 
     // Check if the user has enough points
-    if (
-      user.totalRewards >= pointsToDeduct &&
-      user.gameRewards.gamePoints >= pointsToDeduct
-    ) {
+    if (user.totalRewards >= pointsToDeduct && user.gameRewards.gamePoints >= pointsToDeduct) {
       // Deduct points from totalRewards and gameRewards
       user.totalRewards -= pointsToDeduct;
       user.gameRewards.gamePoints -= pointsToDeduct;
@@ -411,13 +431,15 @@ const purchaseGameCards = async (req, res, next) => {
       // Save the updated user document
       await user.save();
 
-      return res
-        .status(200)
-        .json({ message: "Game cards purchased successfully", user });
+      logger.info(`Successfully deducted ${pointsToDeduct} points for user with telegramId: ${telegramId}`);
+
+      return res.status(200).json({ message: "Game cards purchased successfully", user });
     } else {
+      logger.warn(`User with telegramId: ${telegramId} does not have enough points. Purchase failed.`);
       return res.status(400).json({ message: "Not enough points available" });
     }
   } catch (err) {
+    logger.error(`Error processing purchase for user with telegramId: ${telegramId} - ${err.message}`);
     next(err);
   }
 };
@@ -425,6 +447,9 @@ const purchaseGameCards = async (req, res, next) => {
 const weekRewards = async (req, res, next) => {
   try {
     let { telegramId } = req.params;
+
+    // Log the incoming request
+    logger.info(`Received request to calculate weekly rewards for telegramId: ${telegramId}`);
 
     // Trim leading and trailing spaces
     telegramId = telegramId.trim();
@@ -434,8 +459,11 @@ const weekRewards = async (req, res, next) => {
 
     // Check if user exists
     if (!userDetail) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
+
+    logger.info(`User found for telegramId: ${telegramId}, calculating weekly rewards...`);
 
     // Define the start and end dates
     const startDate = new Date("2024-07-22");
@@ -503,14 +531,18 @@ const weekRewards = async (req, res, next) => {
         ...weeklyData,
       };
 
+      logger.info(`Week ${weekNumber} rewards calculated from ${currentWeekStartDate.toISOString().split("T")[0]} to ${currentWeekEndDate.toISOString().split("T")[0]}`);
+
       // Move to the next week
       currentWeekStartDate.setDate(currentWeekStartDate.getDate() + 7);
       weekNumber++;
     }
 
     // Send the response
+    logger.info(`Weekly rewards calculation completed for telegramId: ${telegramId}`);
     res.json(weeklyRewards);
   } catch (err) {
+    logger.error(`Error calculating weekly rewards for telegramId: ${telegramId} - ${err.message}`);
     next(err);
   }
 };

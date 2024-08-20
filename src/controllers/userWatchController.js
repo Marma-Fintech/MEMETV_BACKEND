@@ -39,25 +39,35 @@ const userWatchRewards = async (req, res, next) => {
       boosters,
     } = req.body;
 
+    // Log the incoming request
+    logger.info(`Received request to process watch rewards for telegramId: ${telegramId}`);
+
     // Get the current date and time
     const now = new Date();
 
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
 
+    // Check if user exists
     if (!user) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Log user found
+    logger.info(`User found for telegramId: ${telegramId}`);
+
     // Check if the current date is past the userEndDate
     if (now > userEndDate) {
-      // No rewards or boosters can be processed after the end date
+      logger.warn(`User has reached the end date for telegramId: ${telegramId}`);
       return res.status(403).json({
         message:
           "User has reached the end date. No rewards or boosters can be processed.",
         user,
       });
     }
+
+    logger.info(`Calculating rewards for telegramId: ${telegramId}`);
 
     let remainingSeconds = userWatchSeconds;
     let newRewards = 0;
@@ -100,6 +110,9 @@ const userWatchRewards = async (req, res, next) => {
       newRewards = remainingSeconds * level10RewardPerSecond;
     }
 
+    // Log the rewards calculation
+    logger.info(`Rewards calculated for telegramId: ${telegramId}, newRewards: ${newRewards}`);
+
     // Include boosterPoints in totalRewards
     const parsedBoosterPoints = parseFloat(boosterPoints);
     user.totalRewards += newRewards + parsedBoosterPoints;
@@ -126,6 +139,9 @@ const userWatchRewards = async (req, res, next) => {
         }
       }
     }
+
+    // Log the level-up process
+    logger.info(`Level-up bonus calculated for telegramId: ${telegramId}, levelUpBonus: ${levelUpBonus}`);
 
     // Update user level and total rewards with the level-up bonus
     user.level = newLevel;
@@ -155,6 +171,9 @@ const userWatchRewards = async (req, res, next) => {
       });
     }
 
+    // Log daily rewards update
+    logger.info(`Daily rewards updated for telegramId: ${telegramId}, amount: ${dailyRewardAmount}`);
+
     // Update watchRewards and levelUpRewards fields
     user.watchRewards =
       (user.watchRewards || 0) + newRewards + parsedBoosterPoints;
@@ -168,10 +187,14 @@ const userWatchRewards = async (req, res, next) => {
           user.boosters.splice(index, 1); // Remove the first occurrence of the booster
         }
       });
+
+      logger.info(`Boosters updated for telegramId: ${telegramId}`);
     }
 
     // Save the updated user
     await user.save();
+
+    logger.info(`Rewards and level updated successfully for telegramId: ${telegramId}`);
 
     res.status(200).json({
       message: "Rewards and level updated successfully",
@@ -195,6 +218,7 @@ const userWatchRewards = async (req, res, next) => {
       updatedAt: user.updatedAt,
     });
   } catch (err) {
+    logger.error(`Error processing rewards for telegramId: ${telegramId} - ${err.message}`);
     next(err);
   }
 };
@@ -202,6 +226,9 @@ const userWatchRewards = async (req, res, next) => {
 const boosterDetails = async (req, res, next) => {
   try {
     let { telegramId } = req.params;
+
+    // Log the incoming request
+    logger.info(`Received request to fetch booster details for telegramId: ${telegramId}`);
 
     // Trim leading and trailing spaces
     telegramId = telegramId.trim();
@@ -211,8 +238,12 @@ const boosterDetails = async (req, res, next) => {
 
     // Check if user detail was found
     if (!userDetail) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
+
+    // Log successful retrieval of user details
+    logger.info(`User details fetched successfully for telegramId: ${telegramId}`);
 
     // Return the boosters array along with other relevant user details
     res.status(200).json({
@@ -220,6 +251,8 @@ const boosterDetails = async (req, res, next) => {
       boosters: userDetail.boosters,
     });
   } catch (err) {
+    // Log any errors
+    logger.error(`Error fetching booster details for telegramId: ${telegramId} - ${err.message}`);
     next(err);
   }
 };
@@ -228,18 +261,24 @@ const purchaseBooster = async (req, res, next) => {
   try {
     const { telegramId, boosterPoints, booster } = req.body;
 
+    // Log the incoming request
+    logger.info(`Received request to purchase booster for telegramId: ${telegramId}`);
+
     // Get the current date and time
     const now = new Date();
 
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
 
+    // Check if the user exists
     if (!user) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
 
     // Check if the current date is past the userEndDate
     if (now > userEndDate) {
+      logger.info(`Attempted purchase after userEndDate for telegramId: ${telegramId}`);
       return res.status(403).json({
         message: "User has reached the end date. No purchases can be made.",
         user,
@@ -251,6 +290,7 @@ const purchaseBooster = async (req, res, next) => {
       user.totalRewards < boosterPoints ||
       user.watchRewards < boosterPoints
     ) {
+      logger.warn(`Insufficient points for booster purchase for telegramId: ${telegramId}`);
       return res
         .status(400)
         .json({ message: "Not enough purchase points available" });
@@ -260,24 +300,37 @@ const purchaseBooster = async (req, res, next) => {
     user.totalRewards -= boosterPoints;
     user.watchRewards -= boosterPoints;
 
+    // Log the deduction of points
+    logger.info(`Deducted ${boosterPoints} points for telegramId: ${telegramId}`);
+
     // Push the booster into the boosters array
     user.boosters.push(booster);
 
     // Save the updated user
     await user.save();
 
+    // Log successful purchase
+    logger.info(`Booster purchased successfully for telegramId: ${telegramId}`);
+
     res.status(200).json({ message: "Booster purchased successfully", user });
   } catch (err) {
+    // Log any errors
+    logger.error(`Error during booster purchase for telegramId: ${telegramId} - ${err.message}`);
     next(err);
   }
 };
+
 
 const stakingRewards = async (req, res, next) => {
   try {
     const { stakingId } = req.body;
 
+    // Log the incoming request
+    logger.info(`Received request to process staking rewards for stakingId: ${stakingId}`);
+
     // Validate stakingId
     if (!isValidObjectId(stakingId)) {
+      logger.warn(`Invalid stakingId format: ${stakingId}`);
       return res.status(400).json({ message: "Invalid stakingId format" });
     }
 
@@ -287,6 +340,7 @@ const stakingRewards = async (req, res, next) => {
     });
 
     if (!user) {
+      logger.warn(`User not found for stakingId: ${stakingId}`);
       return res.status(404).json({ message: "User not found" });
     }
 
@@ -294,6 +348,7 @@ const stakingRewards = async (req, res, next) => {
     const reward = user.dailyRewards.id(stakingId);
 
     if (reward.userStaking) {
+      logger.info(`User has already staked for stakingId: ${stakingId}`);
       return res.status(400).json({ message: "User has already staked" });
     }
 
@@ -311,6 +366,9 @@ const stakingRewards = async (req, res, next) => {
     user.totalRewards += additionalReward; // Only add the extra amount to totalRewards
     user.stakingRewards += additionalReward; // Add the same extra amount to stakingRewards
 
+    // Log the reward update
+    logger.info(`Doubled rewards for stakingId: ${stakingId}, added ${additionalReward} to user ${user._id}`);
+
     // Check for level-up bonuses and update the user's level
     let currentLevel = user.level;
     while (
@@ -323,6 +381,9 @@ const stakingRewards = async (req, res, next) => {
       user.levelUpRewards += levelUpBonus;
       // Update the user's level
       currentLevel += 1;
+
+      // Log the level-up
+      logger.info(`User ${user._id} leveled up to ${currentLevel} with bonus ${levelUpBonus}`);
     }
     user.level = currentLevel;
 
@@ -335,10 +396,13 @@ const stakingRewards = async (req, res, next) => {
     // Save the updated user document
     await user.save();
 
-    res
-      .status(200)
-      .json({ message: "Staking rewards updated successfully", user });
+    // Log the successful staking update
+    logger.info(`Staking rewards updated successfully for stakingId: ${stakingId}, userId: ${user._id}`);
+
+    res.status(200).json({ message: "Staking rewards updated successfully", user });
   } catch (err) {
+    // Log any errors
+    logger.error(`Error processing staking rewards for stakingId: ${stakingId} - ${err.message}`);
     next(err);
   }
 };
@@ -350,6 +414,9 @@ const popularUser = async (req, res, next) => {
     // Trim leading and trailing spaces
     telegramId = telegramId.trim();
 
+    // Log the incoming request
+    logger.info(`Received request to retrieve popular user data for telegramId: ${telegramId}`);
+
     // Retrieve all users sorted by totalRewards in descending order
     const allUsers = await User.find().sort({ totalRewards: -1 });
 
@@ -359,12 +426,16 @@ const popularUser = async (req, res, next) => {
     );
 
     if (userIndex === -1) {
+      logger.warn(`User with telegramId: ${telegramId} not found`);
       return res.status(404).json({ message: "User not found" });
     }
 
     // Get the user details and rank
     const userDetail = allUsers[userIndex];
     const userRank = userIndex + 1; // Rank is index + 1
+
+    // Log the user rank and details
+    logger.info(`User found: telegramId: ${telegramId}, rank: ${userRank}, totalRewards: ${userDetail.totalRewards}`);
 
     // Format user details
     const userFormattedDetail = {
@@ -384,11 +455,16 @@ const popularUser = async (req, res, next) => {
       totalRewards: user.totalRewards,
     }));
 
+    // Log the top 100 users retrieval
+    logger.info('Retrieved top 100 users successfully');
+
     res.status(200).json({
       topUsers,
       yourDetail: userFormattedDetail,
     });
   } catch (err) {
+    // Log any errors
+    logger.error(`Error retrieving popular user data for telegramId: ${telegramId} - ${err.message}`);
     next(err);
   }
 };
@@ -398,20 +474,30 @@ const yourReferrals = async (req, res, next) => {
     let { telegramId } = req.params;
     telegramId = telegramId.trim();
 
+    // Log the incoming request
+    logger.info(`Received request to retrieve referrals for telegramId: ${telegramId}`);
+
     // Get pagination parameters from query, set defaults if not provided
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
+    // Log pagination details
+    logger.info(`Pagination details - Page: ${page}, Limit: ${limit}, Skip: ${skip}`);
+
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
 
     if (!user) {
+      logger.warn(`User with telegramId: ${telegramId} not found`);
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Extract the userIds from the yourReferenceIds array
+    // Log the number of referrals
     const totalReferrals = user.yourReferenceIds.length;
+    logger.info(`User found - Total Referrals: ${totalReferrals}`);
+
+    // Extract the userIds from the yourReferenceIds array
     const paginatedReferenceIds = user.yourReferenceIds.slice(
       skip,
       skip + limit
@@ -423,6 +509,9 @@ const yourReferrals = async (req, res, next) => {
     const referencedUsers = await User.find({ _id: { $in: userIds } }).select(
       "name totalRewards"
     );
+
+    // Log the number of referenced users found
+    logger.info(`Referenced users found: ${referencedUsers.length}`);
 
     // Create a map of referenced users by their ID for quick lookup
     const userMap = new Map();
@@ -441,6 +530,9 @@ const yourReferrals = async (req, res, next) => {
       };
     });
 
+    // Log the response details
+    logger.info(`Referrals retrieved successfully for telegramId: ${telegramId}`);
+
     res.status(200).json({
       referrals,
       total: totalReferrals,
@@ -449,6 +541,8 @@ const yourReferrals = async (req, res, next) => {
       totalPages: Math.ceil(totalReferrals / limit),
     });
   } catch (err) {
+    // Log any errors
+    logger.error(`Error retrieving referrals for telegramId: ${telegramId} - ${err.message}`);
     next(err);
   }
 };
