@@ -1,6 +1,7 @@
 const User = require("../models/userModel");
 const mongoose = require("mongoose");
 const { isValidObjectId } = mongoose;
+const logger = require('../helpers/logger');
 
 const levelUpBonuses = [
   // 500, // Level 1 bonus, you reach 1000 its level2 you got level2 bonus points
