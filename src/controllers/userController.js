@@ -190,7 +190,7 @@ const login = async (req, res, next) => {
           });
         }
 
-        referringUser.boosters.push("2x");
+        referringUser.boosters.push("2x","2x","2x","2x","2x");
 
         updateLevel(referringUser, currentDateString);
 
