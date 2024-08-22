@@ -5,27 +5,27 @@ const { isValidObjectId } = mongoose;
 const levelUpBonuses = [
   // 500, // Level 1 bonus, you reach 1000 its level2 you got level2 bonus points
   1000, // Level 2 to Level 3
-  5000, // Level 3 to Level 4
-  10000, // Level 4 to Level 5
-  20000, // Level 5 to Level 6
-  50000, // Level 6 to Level 7
-  100000, // Level 7 to Level 8
-  250000, // Level 8 to Level 9
-  500000, // Level 9 to Level 10
-  1000000, // Level 10 and above
+  10000, // Level 3 to Level 4
+  50000, // Level 4 to Level 5
+  100000,// Level 5 to Level 6
+  500000, // Level 6 to Level 7
+  1000000, // Level 7 to Level 8
+  5000000, // Level 8 to Level 9
+  10000000, // Level 9 to Level 10
+  20000000, // Level 10 and above
 ];
 
 const thresholds = [
   { limit: 0, rewardPerSecond: 1, level: 1 },
-  { limit: 1000, rewardPerSecond: 2, level: 2 },
-  { limit: 10000, rewardPerSecond: 3, level: 3 },
-  { limit: 50000, rewardPerSecond: 4, level: 4 },
-  { limit: 100000, rewardPerSecond: 5, level: 5 },
-  { limit: 250000, rewardPerSecond: 6, level: 6 },
-  { limit: 500000, rewardPerSecond: 7, level: 7 },
-  { limit: 1000000, rewardPerSecond: 8, level: 8 },
-  { limit: 5000000, rewardPerSecond: 9, level: 9 },
-  { limit: 10000000, rewardPerSecond: 10, level: 10 },
+  { limit: 10000, rewardPerSecond: 2, level: 2 },
+  { limit: 50000, rewardPerSecond: 3, level: 3 },
+  { limit: 200000, rewardPerSecond: 4, level: 4 },
+  { limit: 800000, rewardPerSecond: 5, level: 5 },
+  { limit: 3000000, rewardPerSecond: 6, level: 6 },
+  { limit: 10000000, rewardPerSecond: 7, level: 7 },
+  { limit: 25000000, rewardPerSecond: 8, level: 8 },
+  { limit: 50000000, rewardPerSecond: 9, level: 9 },
+  { limit: 80000000, rewardPerSecond: 10, level: 10 },
 ];
 
 const userEndDate = new Date("2024-09-01");

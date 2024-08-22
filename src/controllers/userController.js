@@ -13,41 +13,29 @@ const generateRefId = () => {
   return result;
 };
 
-// const levelUpBonuses = [
-//   10, // Level 2 to Level 3
-//   20, // Level 3 to Level 4
-//   30, // Level 4 to Level 5
-//   40, // Level 5 to Level 6
-//   50, // Level 6 to Level 7
-//   60, // Level 7 to Level 8
-//   70, // Level 8 to Level 9
-//   80, // Level 9 to Level 10
-//   90, // Level 10 and above
-// ];
-
 const levelUpBonuses = [
   1000, // Level 2 to Level 3
-  5000, // Level 3 to Level 4
-  10000, // Level 4 to Level 5
-  20000, // Level 5 to Level 6
-  50000, // Level 6 to Level 7
-  100000, // Level 7 to Level 8
-  250000, // Level 8 to Level 9
-  500000, // Level 9 to Level 10
-  1000000, // Level 10 and above
+  10000, // Level 3 to Level 4
+  50000, // Level 4 to Level 5
+  100000,// Level 5 to Level 6
+  500000, // Level 6 to Level 7
+  1000000, // Level 7 to Level 8
+  5000000, // Level 8 to Level 9
+  10000000, // Level 9 to Level 10
+  20000000, // Level 10 and above
 ];
 
 const thresholds = [
   { limit: 500, level: 1 },
   { limit: 10000, level: 2 },
-  { limit: 25000, level: 3 },
-  { limit: 100000, level: 4 },
-  { limit: 250000, level: 5 },
-  { limit: 500000, level: 6 },
-  { limit: 1000000, level: 7 },
-  { limit: 2000000, level: 8 },
-  { limit: 5000000, level: 9 },
-  { limit: 10000000, level: 10 },
+  { limit: 50000, level: 3 },
+  { limit: 200000, level: 4 },
+  { limit: 800000, level: 5 },
+  { limit: 3000000, level: 6 },
+  { limit: 10000000, level: 7 },
+  { limit: 25000000,  level: 8 },
+  { limit: 50000000, level: 9 },
+  { limit: 80000000, level: 10 },
 ];
 
 const userEndDate = new Date("2024-09-01");
