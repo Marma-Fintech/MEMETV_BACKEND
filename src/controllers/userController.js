@@ -38,7 +38,7 @@ const thresholds = [
   { limit: 80000000, level: 10 },
 ];
 
-const userEndDate = new Date("2024-09-01");
+const userEndDate = new Date("2024-11-14");
 
 const updateLevel = (user, currentDateString) => {
   const currentDate = new Date(currentDateString);
@@ -93,6 +93,17 @@ const updateLevel = (user, currentDateString) => {
   }
 };
 
+const startDate = new Date("2024-08-23");
+const endDate = new Date("2024-11-14");
+
+const calculatePhase = (currentDate, startDate) => {
+  const oneDay = 24 * 60 * 60 * 1000;
+  const daysDifference = Math.floor((currentDate - startDate) / oneDay);
+  const phase = Math.floor(daysDifference / 7) + 1;
+  return Math.min(phase, 12); // Cap phase at 12
+};
+
+
 const login = async (req, res, next) => {
   let { name, referredById, telegramId } = req.body;
   try {
@@ -103,6 +114,8 @@ const login = async (req, res, next) => {
     let user = await User.findOne({ telegramId });
     const currentDate = new Date();
     const currentDateString = currentDate.toISOString().split("T")[0]; // e.g., "2024-08-13"
+
+    const currentPhase = calculatePhase(currentDate, startDate);
 
     if (currentDate > userEndDate) {
       if (!user) {
@@ -116,7 +129,7 @@ const login = async (req, res, next) => {
         logger.info(`User ${user.name} logged in successfully after end date`);
         return res.status(201).json({
           message: "User logged in successfully",
-          user,
+          user: { ...user.toObject(), currentPhase },
           warning: "No rewards can be calculated after the end date",
         });
       }
@@ -190,7 +203,7 @@ const login = async (req, res, next) => {
           });
         }
 
-        referringUser.boosters.push("2x","2x","2x","2x","2x");
+        referringUser.boosters.push("2x", "2x", "2x", "2x", "2x");
 
         updateLevel(referringUser, currentDateString);
 
@@ -220,7 +233,7 @@ const login = async (req, res, next) => {
 
     res.status(201).json({
       message: `User logged in successfully`,
-      user,
+      user: { ...user.toObject(), currentPhase }, // Include currentPhase in user object
     });
   } catch (err) {
     logger.error(`Error during login process: ${err.message}`);
@@ -454,8 +467,8 @@ const weekRewards = async (req, res, next) => {
     logger.info(`User found for telegramId: ${telegramId}, calculating weekly rewards...`);
 
     // Define the start and end dates
-    const startDate = new Date("2024-07-22");
-    const endDate = new Date("2024-09-29");
+    const startDate = new Date("2024-08-23");
+    const endDate = new Date("2024-11-14");
 
     // Initialize object to hold weekly rewards
     const weeklyRewards = {};
