@@ -151,7 +151,7 @@ const login = async (req, res, next) => {
         telegramId,
         refId,
         referredById,
-        boosters: ["levelUp", "tap"],
+        boosters: ["levelUp"],
         totalRewards: 500,
         referRewards: 0,
         lastLogin: currentDate,
@@ -221,7 +221,7 @@ const login = async (req, res, next) => {
         currentDate.getUTCMonth() > lastLoginMonth ||
         currentDate.getUTCDate() > lastLoginDay
       ) {
-        user.boosters.push("levelUp", "tap");
+        user.boosters.push("levelUp");
       }
 
       user.lastLogin = currentDate;
