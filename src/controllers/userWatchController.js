@@ -288,7 +288,7 @@ const purchaseBooster = async (req, res, next) => {
     }
 
     // Check if the user has enough boosterPoints available in both totalRewards and watchRewards
-    const totalBoosterPoints = boosterPoints * boosterCount;
+    const totalBoosterPoints = boosterPoints
     if (user.totalRewards < totalBoosterPoints || user.watchRewards < totalBoosterPoints) {
       logger.warn(`Insufficient points for booster purchase for telegramId: ${telegramId}`);
       return res

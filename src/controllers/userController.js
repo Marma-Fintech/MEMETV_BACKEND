@@ -393,6 +393,49 @@ const userGameRewards = async (req, res, next) => {
   }
 };
 
+const userTaskRewards =  async(req, res, next) => {
+  try {
+    const {telegramId, taskPoints} = req.body;
+    logger.info(`Received request to add game rewards for user with telegramId: ${telegramId}`);
+
+     // Find the user by telegramId
+     const user = await User.findOne({ telegramId });
+
+     if (!user) {
+       logger.warn(`User not found for telegramId: ${telegramId}`);
+       return res.status(404).json({ message: "User not found" });
+     }
+ 
+    // Check if the current date is past the userEndDate
+    if (now > userEndDate) {
+      logger.warn(`User with telegramId: ${telegramId} has reached the end date. No rewards can be added.`);
+      return res.status(403).json({
+        message: "User has reached the end date. No rewards can be added.",
+        user,
+      });
+    }
+
+    //Ensure taskPoints is a Number
+    const pointsToAdd = Number(taskPoints) || 0;
+
+    //Add taskPoints to totalRewards and taskRewards
+    if(pointsToAdd > 0) {
+      user.totalRewards += pointsToAdd;
+
+    //update taskRewards
+    user.taskRewards.taskPoints += pointsToAdd;
+
+    logger.info(`Added ${pointsToAdd} task points to user with telegramId: ${telegramId}`);
+    }
+
+    
+
+  } catch (err) {
+    logger.error(`Error processing game rewards for user with telegramId: ${telegramId} - ${err.message}`);
+    next(err);
+  }
+}
+
 
 const purchaseGameCards = async (req, res, next) => {
   try {
@@ -548,10 +591,13 @@ const weekRewards = async (req, res, next) => {
   }
 };
 
+
+
 module.exports = {
   login,
   userDetails,
   userGameRewards,
   purchaseGameCards,
   weekRewards,
+  userTaskRewards
 };
