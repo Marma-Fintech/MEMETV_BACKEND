@@ -113,10 +113,25 @@ const login = async (req, res, next) => {
 
     let user = await User.findOne({ telegramId });
     const currentDate = new Date();
-    const currentDateString = currentDate.toISOString().split("T")[0]; // e.g., "2024-08-13"
+    const currentDateString = currentDate.toISOString().split("T")[0]; // e.g., "2024-08-27"
+
+    // If user exists, check if the current date is earlier than the last login date
+
+    if (user) {
+          const lastLoginDate = new Date(user.lastLogin);
+
+          // If the current date is earlier than the last login date, return an error
+          if (currentDate < lastLoginDate) {
+              return res.status(400).json({
+                  message: "Login failed: Cannot log in to a previous date.",
+              });
+          }
+      }
+ 
 
     const currentPhase = calculatePhase(currentDate, startDate);
 
+    // Check if the current date is after the user end date
     if (currentDate > userEndDate) {
       if (!user) {
         logger.warn(`Attempted to create new user after end date: ${currentDate}`);
@@ -146,6 +161,7 @@ const login = async (req, res, next) => {
     }
 
     if (!user) {
+      // Create a new user
       user = new User({
         name,
         telegramId,
@@ -211,6 +227,7 @@ const login = async (req, res, next) => {
         logger.info(`User ${referringUser.name} referred a new user and received rewards`);
       }
     } else {
+      // Update existing user
       const lastLoginDate = new Date(user.lastLogin);
       const lastLoginDay = lastLoginDate.getUTCDate();
       const lastLoginMonth = lastLoginDate.getUTCMonth();
