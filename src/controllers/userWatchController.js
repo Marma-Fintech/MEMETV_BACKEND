@@ -258,9 +258,10 @@ const boosterDetails = async (req, res, next) => {
   }
 };
 
+
 const purchaseBooster = async (req, res, next) => {
   try {
-    const { telegramId, boosterPoints, booster } = req.body;
+    const { telegramId, boosterPoints, booster, boosterCount } = req.body;
 
     // Log the incoming request
     logger.info(`Received request to purchase booster for telegramId: ${telegramId}`);
@@ -287,25 +288,25 @@ const purchaseBooster = async (req, res, next) => {
     }
 
     // Check if the user has enough boosterPoints available in both totalRewards and watchRewards
-    if (
-      user.totalRewards < boosterPoints ||
-      user.watchRewards < boosterPoints
-    ) {
+    const totalBoosterPoints = boosterPoints * boosterCount;
+    if (user.totalRewards < totalBoosterPoints || user.watchRewards < totalBoosterPoints) {
       logger.warn(`Insufficient points for booster purchase for telegramId: ${telegramId}`);
       return res
         .status(400)
         .json({ message: "Not enough purchase points available" });
     }
 
-    // Deduct the boosterPoints from totalRewards and watchRewards
-    user.totalRewards -= boosterPoints;
-    user.watchRewards -= boosterPoints;
+    // Deduct the total boosterPoints from totalRewards and watchRewards
+    user.totalRewards -= totalBoosterPoints;
+    user.watchRewards -= totalBoosterPoints;
 
     // Log the deduction of points
-    logger.info(`Deducted ${boosterPoints} points for telegramId: ${telegramId}`);
+    logger.info(`Deducted ${totalBoosterPoints} points for telegramId: ${telegramId}`);
 
-    // Push the booster into the boosters array
-    user.boosters.push(booster);
+    // Push the booster multiple times based on boosterCount into the boosters array
+    for (let i = 0; i < boosterCount; i++) {
+      user.boosters.push(booster);
+    }
 
     // Save the updated user
     await user.save();
@@ -320,6 +321,7 @@ const purchaseBooster = async (req, res, next) => {
     next(err);
   }
 };
+
 
 
 const stakingRewards = async (req, res, next) => {

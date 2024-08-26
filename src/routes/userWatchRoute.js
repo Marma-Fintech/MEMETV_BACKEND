@@ -40,6 +40,7 @@ router.post(
       telegramId: Joi.string().required(),
       boosterPoints: Joi.string().required(),
       booster: Joi.string().required(),
+      boosterCount: Joi.number().required(),
     }),
   }),
   purchaseBooster
