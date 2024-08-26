@@ -393,19 +393,26 @@ const userGameRewards = async (req, res, next) => {
   }
 };
 
-const userTaskRewards =  async(req, res, next) => {
+
+const userTaskRewards = async (req, res, next) => {
+  let telegramId; // Initialize telegramId here
+
   try {
-    const {telegramId, taskPoints} = req.body;
+    const { telegramId: receivedTelegramId, taskPoints } = req.body;
+    telegramId = receivedTelegramId; // Assign the value from req.body
+
     logger.info(`Received request to add game rewards for user with telegramId: ${telegramId}`);
 
-     // Find the user by telegramId
-     const user = await User.findOne({ telegramId });
+    // Find the user by telegramId
+    const user = await User.findOne({ telegramId });
 
-     if (!user) {
-       logger.warn(`User not found for telegramId: ${telegramId}`);
-       return res.status(404).json({ message: "User not found" });
-     }
- 
+    if (!user) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const now = new Date(); // Add this line to define 'now'
+
     // Check if the current date is past the userEndDate
     if (now > userEndDate) {
       logger.warn(`User with telegramId: ${telegramId} has reached the end date. No rewards can be added.`);
@@ -415,27 +422,59 @@ const userTaskRewards =  async(req, res, next) => {
       });
     }
 
-    //Ensure taskPoints is a Number
+    // Ensure taskPoints is a Number
     const pointsToAdd = Number(taskPoints) || 0;
 
-    //Add taskPoints to totalRewards and taskRewards
-    if(pointsToAdd > 0) {
+    // Add taskPoints to totalRewards and taskRewards
+    if (pointsToAdd > 0) {
       user.totalRewards += pointsToAdd;
 
-    //update taskRewards
-    user.taskRewards.taskPoints += pointsToAdd;
+      // Update taskRewards
+      user.taskRewards += pointsToAdd;
 
-    logger.info(`Added ${pointsToAdd} task points to user with telegramId: ${telegramId}`);
+      logger.info(`Added ${pointsToAdd} task points to user with telegramId: ${telegramId}`);
     }
 
-    
+    const currentDateString = now.toISOString().split("T")[0]; // "YYYY-MM-DD"
+
+    // Check if there is an existing entry for today in dailyRewards
+    let lastDailyReward = user.dailyRewards[user.dailyRewards.length - 1];
+    const lastRewardDateString = lastDailyReward
+      ? new Date(lastDailyReward.createdAt).toISOString().split("T")[0]
+      : null;
+
+    if (lastRewardDateString !== currentDateString) {
+      // Create a new dailyReward entry for today
+      user.dailyRewards.push({
+        userId: user._id,
+        telegramId: user.telegramId,
+        totalRewards: pointsToAdd, // Store only the points added today
+        userStaking: false,
+        createdAt: now,
+      });
+      logger.info(`Created new daily reward entry for user with telegramId: ${telegramId}`);
+    } else {
+      // Update the existing entry for today
+      lastDailyReward.totalRewards += pointsToAdd;
+      lastDailyReward.updatedAt = now;
+      logger.info(`Updated daily reward entry for user with telegramId: ${telegramId}`);
+    }
+
+    // Update the user's level and levelUpRewards based on the new totalRewards
+    updateLevel(user, currentDateString);
+
+    // Save the updated user document
+    await user.save();
+
+    logger.info(`Successfully added boosters and taskPoints for user with telegramId: ${telegramId}`);
+
+    return res.status(200).json({ message: "TaskPoints added successfully", user });
 
   } catch (err) {
     logger.error(`Error processing game rewards for user with telegramId: ${telegramId} - ${err.message}`);
     next(err);
   }
-}
-
+};
 
 const purchaseGameCards = async (req, res, next) => {
   try {
