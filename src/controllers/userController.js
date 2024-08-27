@@ -455,7 +455,8 @@ const userTaskRewards = async (req, res, next) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const now = new Date(); // Add this line to define 'now'
+    const now = new Date(); // Get current date and time
+    const currentDateString = now.toISOString().split("T")[0]; // "YYYY-MM-DD"
 
     // Check if the current date is past the userEndDate
     if (now > userEndDate) {
@@ -469,6 +470,19 @@ const userTaskRewards = async (req, res, next) => {
     // Ensure taskPoints is a Number
     const pointsToAdd = Number(taskPoints) || 0;
 
+    // Check if the system date is earlier than the last dailyRewards date
+    const lastDailyReward = user.dailyRewards[user.dailyRewards.length - 1];
+    if (lastDailyReward) {
+      const lastRewardDateString = new Date(lastDailyReward.createdAt).toISOString().split("T")[0];
+      if (currentDateString < lastRewardDateString) {
+        // If current date is earlier than last dailyRewards date, prevent updating
+        logger.warn(`Attempt to add rewards on a previous date. Current date: ${currentDateString}, Last daily rewards date: ${lastRewardDateString}`);
+        return res.status(400).json({
+          message: "Cannot add rewards for a previous date.",
+        });
+      }
+    }
+
     // Add taskPoints to totalRewards and taskRewards
     if (pointsToAdd > 0) {
       user.totalRewards += pointsToAdd;
@@ -479,15 +493,10 @@ const userTaskRewards = async (req, res, next) => {
       logger.info(`Added ${pointsToAdd} task points to user with telegramId: ${telegramId}`);
     }
 
-    const currentDateString = now.toISOString().split("T")[0]; // "YYYY-MM-DD"
-
     // Check if there is an existing entry for today in dailyRewards
-    let lastDailyReward = user.dailyRewards[user.dailyRewards.length - 1];
-    const lastRewardDateString = lastDailyReward
-      ? new Date(lastDailyReward.createdAt).toISOString().split("T")[0]
-      : null;
+    let dailyReward = user.dailyRewards.find(dr => new Date(dr.createdAt).toISOString().split("T")[0] === currentDateString);
 
-    if (lastRewardDateString !== currentDateString) {
+    if (!dailyReward) {
       // Create a new dailyReward entry for today
       user.dailyRewards.push({
         userId: user._id,
@@ -499,8 +508,8 @@ const userTaskRewards = async (req, res, next) => {
       logger.info(`Created new daily reward entry for user with telegramId: ${telegramId}`);
     } else {
       // Update the existing entry for today
-      lastDailyReward.totalRewards += pointsToAdd;
-      lastDailyReward.updatedAt = now;
+      dailyReward.totalRewards += pointsToAdd;
+      dailyReward.updatedAt = now;
       logger.info(`Updated daily reward entry for user with telegramId: ${telegramId}`);
     }
 
@@ -519,6 +528,7 @@ const userTaskRewards = async (req, res, next) => {
     next(err);
   }
 };
+
 
 const purchaseGameCards = async (req, res, next) => {
   try {

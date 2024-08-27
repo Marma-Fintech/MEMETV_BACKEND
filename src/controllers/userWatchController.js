@@ -449,7 +449,7 @@ const popularUser = async (req, res, next) => {
       totalRewards: userDetail.totalRewards,
     };
 
-    // Get the top 100 users
+    // Get the top 10 users
     const topUsers = allUsers.slice(0, 10).map((user, index) => ({
       rank: index + 1,
       telegramId: user.telegramId,
