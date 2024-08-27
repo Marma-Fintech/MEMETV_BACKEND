@@ -333,6 +333,21 @@ const userGameRewards = async (req, res, next) => {
       });
     }
 
+    const currentDateString = now.toISOString().split("T")[0]; // "YYYY-MM-DD"
+
+    // Check if there is an existing entry in dailyRewards
+    let lastDailyReward = user.dailyRewards[user.dailyRewards.length - 1];
+    const lastRewardDate = lastDailyReward ? new Date(lastDailyReward.createdAt) : null;
+
+    // Ensure that the current date is not earlier than the last recorded date in dailyRewards
+    if (lastRewardDate && now < lastRewardDate) {
+      logger.warn(`The current date ${currentDateString} is earlier than the last reward date ${lastRewardDate.toISOString().split("T")[0]}. Rewards cannot be updated.`);
+      return res.status(403).json({
+        message: `Rewards cannot be updated to an earlier date.`,
+        user,
+      });
+    }
+
     // Push new boosters into the existing boosters array
     if (boosters && boosters.length > 0) {
       user.boosters.push(...boosters);
@@ -353,13 +368,7 @@ const userGameRewards = async (req, res, next) => {
       logger.info(`Added ${pointsToAdd} game points to user with telegramId: ${telegramId}`);
     }
 
-    const currentDateString = now.toISOString().split("T")[0]; // "YYYY-MM-DD"
-
-    // Check if there is an existing entry for today in dailyRewards
-    let lastDailyReward = user.dailyRewards[user.dailyRewards.length - 1];
-    const lastRewardDateString = lastDailyReward
-      ? new Date(lastDailyReward.createdAt).toISOString().split("T")[0]
-      : null;
+    const lastRewardDateString = lastRewardDate ? lastRewardDate.toISOString().split("T")[0] : null;
 
     if (lastRewardDateString !== currentDateString) {
       // Create a new dailyReward entry for today
@@ -392,7 +401,6 @@ const userGameRewards = async (req, res, next) => {
     next(err);
   }
 };
-
 
 const userTaskRewards = async (req, res, next) => {
   let telegramId; // Initialize telegramId here
@@ -579,6 +587,8 @@ const weekRewards = async (req, res, next) => {
         rewardsForWeek.push({
           date: dateString,
           totalRewards: rewardForDate ? rewardForDate.totalRewards : 0,
+          userStaking: rewardForDate ? rewardForDate.userStaking : 0, // Add userStaking field
+          _id: rewardForDate ? rewardForDate._id : null // Add _id field
         });
       }
 
@@ -629,6 +639,7 @@ const weekRewards = async (req, res, next) => {
     next(err);
   }
 };
+
 
 
 
