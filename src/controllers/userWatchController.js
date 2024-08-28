@@ -45,6 +45,7 @@ const userWatchRewards = async (req, res, next) => {
 
     // Get the current date and time
     const now = new Date();
+    const currentDateString = now.toISOString().split("T")[0]; // "YYYY-MM-DD"
 
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
@@ -62,8 +63,7 @@ const userWatchRewards = async (req, res, next) => {
     if (now > userEndDate) {
       logger.warn(`User has reached the end date for telegramId: ${telegramId}`);
       return res.status(403).json({
-        message:
-          "User has reached the end date. No rewards or boosters can be processed.",
+        message: "User has reached the end date. No rewards or boosters can be processed.",
         user,
       });
     }
@@ -148,15 +148,25 @@ const userWatchRewards = async (req, res, next) => {
     user.level = newLevel;
     user.totalRewards += levelUpBonus;
 
-    // Get current date in YYYY-MM-DD format
-    const currentDate = new Date().toISOString().split("T")[0];
-
     // Calculate total daily rewards including level-up bonuses and boosterPoints
     let dailyRewardAmount = newRewards + levelUpBonus + parsedBoosterPoints;
 
+    // Check if the system date is earlier than the last dailyRewards date
+    let lastDailyReward = user.dailyRewards[user.dailyRewards.length - 1];
+    if (lastDailyReward) {
+      const lastRewardDateString = new Date(lastDailyReward.createdAt).toISOString().split("T")[0];
+      if (currentDateString < lastRewardDateString) {
+        // If current date is earlier than last dailyRewards date, prevent updating
+        logger.warn(`Attempt to add rewards on a previous date. Current date: ${currentDateString}, Last daily rewards date: ${lastRewardDateString}`);
+        return res.status(400).json({
+          message: "Cannot add rewards for a previous date.",
+        });
+      }
+    }
+
     // Check if there's already an entry for today in dailyRewards
     let dailyReward = user.dailyRewards.find(
-      (reward) => reward.createdAt.toISOString().split("T")[0] === currentDate
+      (reward) => new Date(reward.createdAt).toISOString().split("T")[0] === currentDateString
     );
 
     if (dailyReward) {
@@ -176,8 +186,7 @@ const userWatchRewards = async (req, res, next) => {
     logger.info(`Daily rewards updated for telegramId: ${telegramId}, amount: ${dailyRewardAmount}`);
 
     // Update watchRewards and levelUpRewards fields
-    user.watchRewards =
-      (user.watchRewards || 0) + newRewards + parsedBoosterPoints;
+    user.watchRewards = (user.watchRewards || 0) + newRewards + parsedBoosterPoints;
     user.levelUpRewards = (user.levelUpRewards || 0) + levelUpBonus;
 
     // Remove only the specified boosters from the user's boosters array
@@ -223,6 +232,8 @@ const userWatchRewards = async (req, res, next) => {
     next(err);
   }
 };
+
+
 
 const boosterDetails = async (req, res, next) => {
   try {
