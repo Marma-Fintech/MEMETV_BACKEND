@@ -116,18 +116,16 @@ const login = async (req, res, next) => {
     const currentDateString = currentDate.toISOString().split("T")[0]; // e.g., "2024-08-27"
 
     // If user exists, check if the current date is earlier than the last login date
-
     if (user) {
-          const lastLoginDate = new Date(user.lastLogin);
+      const lastLoginDate = new Date(user.lastLogin);
 
-          // If the current date is earlier than the last login date, return an error
-          if (currentDate < lastLoginDate) {
-              return res.status(400).json({
-                  message: "Login failed: Cannot log in to a previous date.",
-              });
-          }
+      // If the current date is earlier than the last login date, return an error
+      if (currentDate < lastLoginDate) {
+        return res.status(400).json({
+          message: "Login failed: Cannot log in to a previous date.",
+        });
       }
- 
+    }
 
     const currentPhase = calculatePhase(currentDate, startDate);
 
@@ -157,6 +155,25 @@ const login = async (req, res, next) => {
       if (!referringUser) {
         referredById = ""; // Set to null if referring user not found
         logger.error(`Referring user not found for refId: ${referredById}`);
+      } else {
+        // Check if the referred user's login date is earlier than the last login date of the referring user
+        if (currentDate < new Date(referringUser.lastLogin)) {
+          return res.status(400).json({
+            message: "Login failed: Cannot log in to a previous date.",
+          });
+        }
+
+        // Check if the last record in the referring user's dailyRewards array is from a later date
+        const lastDailyReward = referringUser.dailyRewards[referringUser.dailyRewards.length - 1];
+        if (lastDailyReward) {
+          const lastDailyRewardDate = new Date(lastDailyReward.createdAt);
+
+          if (currentDate < lastDailyRewardDate) {
+            return res.status(400).json({
+              message: "Login failed: Cannot log in to a previous date.",
+            });
+          }
+        }
       }
     }
 
@@ -257,6 +274,8 @@ const login = async (req, res, next) => {
     next(err);
   }
 };
+
+
 
 
 const calculateMilestoneRewards = (numberOfReferrals) => {
