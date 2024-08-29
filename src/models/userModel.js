@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { streakOfStreak } = require("../controllers/userStreakController");
 
 const userSchema = mongoose.Schema(
   {
@@ -181,7 +182,7 @@ const userSchema = mongoose.Schema(
           type: Number,
           default: 0,
         },
-        SOSCount:{
+        streakOfStreakCount:{
           type: Number,
           default:0,
         },

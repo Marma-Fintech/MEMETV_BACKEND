@@ -30,6 +30,7 @@ router.post(
   }),
   streak
 );
+
 router.post(
   "/streakOfStreak",
   celebrate({
@@ -39,6 +40,7 @@ router.post(
   }),
   streakOfStreak
 );
+
 router.post(
   "/loginStreakRewardClaim",
   celebrate({
@@ -49,6 +51,7 @@ router.post(
   }),
   loginStreakRewardClaim
 );
+
 router.post(
   "/watchStreakRewardClaim",
   celebrate({
@@ -59,6 +62,7 @@ router.post(
   }),
   watchStreakRewardClaim
 );
+
 router.post(
   "/referStreakRewardClaim",
   celebrate({
@@ -69,6 +73,7 @@ router.post(
   }),
   referStreakRewardClaim
 );
+
 router.post(
   "/taskStreakRewardClaim",
   celebrate({
@@ -79,6 +84,7 @@ router.post(
   }),
   taskStreakRewardClaim
 );
+
 router.post(
   "/multiStreakRewardClaim",
   celebrate({
@@ -174,5 +180,6 @@ router.get(
   }),
   userStreaks
 );
+
 router.use(errors());
 module.exports = router;

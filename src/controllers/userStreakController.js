@@ -1,4 +1,5 @@
 const User = require("../models/userModel");
+const logger = require('../helpers/logger');
 require("dotenv").config();
 const loginStreakReward = [100, 200, 400, 800, 1600, 3200, 6400];
 const watchStreakReward = [100, 200, 400, 800, 1600, 3200, 6400];
@@ -6,7 +7,6 @@ const referStreakReward = [1000, 2000, 3000, 5000, 10000, 15000, 25000];
 const taskStreakReward = [100, 200, 400, 800, 1600, 3200, 6400];
 
 const multiStreakReward = [1300, 2100, 4200, 8400, 16800, 33600, 67200];
-let streakOfStreakCount = 0;
 const distributionStartDate = new Date(process.env.DISTRIBUTION_START_DATE);
 const distributionEndDate = new Date(process.env.DISTRIBUTION_END_DATE);
 
@@ -71,7 +71,6 @@ const calculateLoginStreak = async (user, lastLoginDate, differenceInDays) => {
   const lastLoginDay = lastLoginDate.getUTCDate();
 
   if (lastLoginDay != currentDay) {
-    console.log("User need to login first");
     return false;
   }
   if ((await calculateDayDifference(user.streak.loginStreak.loginStreakDate)) >= 1 ||
@@ -153,13 +152,13 @@ const calculateLoginStreak = async (user, lastLoginDate, differenceInDays) => {
     return true;
   } else {
     if (lastLoginDay == currentDay) {
-      console.log("same day login");
       return true;
     } else {
       return false;
     }
   }
 };
+
 const calculateWatchStreak = async (
   user,
   userWatchSeconds,
@@ -245,7 +244,6 @@ const calculateWatchStreak = async (
         }
         return true;
       } else {
-        console.log("Already in a Watch Streak");
         // same day login and no WATCH STREAK reward will be claimed
         return true;
       }
@@ -256,6 +254,7 @@ const calculateWatchStreak = async (
     return false;
   }
 };
+
 const calculateReferStreak = async (user, todaysLogin, differenceInDays) => {
   // check a user has logged in today
   if (todaysLogin) {
@@ -349,7 +348,6 @@ const calculateReferStreak = async (user, todaysLogin, differenceInDays) => {
           }
         }
       } else {
-        console.log("Already in a Refer Streak");
         return true;
       }
 
@@ -370,6 +368,7 @@ const calculateReferStreak = async (user, todaysLogin, differenceInDays) => {
     return false;
   }
 };
+
 const calculateTaskStreak = async (user, todaysLogin, differenceInDays) => {
   // check a user has logged in today
   if (todaysLogin) {
@@ -436,7 +435,6 @@ const calculateTaskStreak = async (user, todaysLogin, differenceInDays) => {
       }
     }
     else{
-      console.log("Already in a Task Streak");
       return true;
     }
     const rewardAmount =
@@ -453,28 +451,39 @@ const calculateTaskStreak = async (user, todaysLogin, differenceInDays) => {
     return false;
   }
 };
+
 //function to calculate streaks(login, watch, refer, task)
 const streak = async (req, res, next) => {
   try {
-    const { telegramId, userWatchSeconds} = req.body;
+    const { telegramId, userWatchSeconds } = req.body;
+
+    // Log the incoming request
+    logger.info(`Attempting to update streak rewards for telegramId: ${telegramId}`);
+
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
     if (!user) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
+
     const lastLoginTime = user.lastLogin;
     let currentDate = new Date();
     const currentDay = currentDate.toISOString().split("T")[0];
     currentDate = new Date(currentDay);
+
     if (currentDate > distributionEndDate) {
-      console.log("Distribution Completed");
-      res.status(400).json({ message: "Distribution Completed" });
+      logger.warn(`Distribution period completed for telegramId: ${telegramId}`);
+      return res.status(400).json({ message: "Distribution Completed" });
     }
+
     // Calculate the difference in milliseconds
-    const differenceInTime =Math.abs(currentDate.getTime() - distributionEndDate.getTime())+1;
+    const differenceInTime =
+      Math.abs(currentDate.getTime() - distributionEndDate.getTime()) + 1;
     // Convert the difference from milliseconds to days
     const differenceInDays = Math.floor(differenceInTime / (1000 * 3600 * 24));
-    //bool to find out whether the user has logged in today
+
+    // Calculate streaks
     const login = await calculateLoginStreak(
       user,
       lastLoginTime,
@@ -488,9 +497,11 @@ const streak = async (req, res, next) => {
     );
     const refer = await calculateReferStreak(user, login, differenceInDays);
     const task = await calculateTaskStreak(user, login, differenceInDays);
-    console.log(login, watch, refer, task);
 
     await user.save();
+
+    logger.info(`Streak rewards updated successfully for telegramId: ${telegramId}`);
+
     res.status(200).json({
       message: "Streak rewards updated successfully",
       name: user.name,
@@ -499,12 +510,13 @@ const streak = async (req, res, next) => {
       watchStreak: user.streak.watchStreak,
       referStreak: user.streak.referStreak,
       taskStreak: user.streak.taskStreak,
-      login: login,
-      watch: watch,
-      refer: refer,
-      task: task
+      login,
+      watch,
+      refer,
+      task
     });
   } catch (err) {
+    logger.error(`Error while updating streak rewards for telegramId: ${telegramId}. Error: ${err.message}`);
     next(err);
   }
 };
@@ -513,9 +525,6 @@ const streak = async (req, res, next) => {
 const calculateMultiStreak = async (
   user,
   todaysLogin,
-  todaysWatch,
-  todaysRefer,
-  todaysTask,
   differenceInDays
 ) => {
   if(todaysLogin){
@@ -546,8 +555,7 @@ const calculateMultiStreak = async (
               user.streak.multiStreak.multiStreakReward[i];
             user.streak.multiStreak.multiStreakReward[i] = 0;
           }
-          streakOfStreakCount=0;
-          user.streak.multiStreak.SOSCount = streakOfStreakCount;
+          user.streak.multiStreak.streakOfStreakCount = 1;
           user.streak.multiStreak.lastSOSReward = 0;
         } else if (
           user.streak.multiStreak.multiStreakCount == 7 ||
@@ -558,8 +566,7 @@ const calculateMultiStreak = async (
               user.streak.multiStreak.multiStreakReward[i];
             user.streak.multiStreak.multiStreakReward[i] = 0;
           }
-          streakOfStreakCount++;
-          user.streak.multiStreak.SOSCount = (streakOfStreakCount-1);
+          user.streak.multiStreak.streakOfStreakCount++;
           user.streak.multiStreak.multiStreakCount = 1;
           user.streak.multiStreak.multiStreakDate = new Date();
           // Update all elements in the claimedMultiDays array to false
@@ -567,24 +574,20 @@ const calculateMultiStreak = async (
           unClaimedStreakRewardsClaim(user);
         } else {
           user.streak.multiStreak.multiStreakCount++;
-          streakOfStreakCount++;
-          user.streak.multiStreak.SOSCount = (streakOfStreakCount-1);
+          user.streak.multiStreak.streakOfStreakCount++;
           user.streak.multiStreak.multiStreakDate = new Date();
         }
         for(i=0 ;i<user.streak.multiStreak.multiStreakCount;i++){
           user.boosters.push("5X");
         }
-
         const rewardAmount =
           multiStreakReward[user.streak.multiStreak.multiStreakCount-1];
         //add rewards to multi streak rewards
         user.streak.multiStreak.multiStreakReward[
           user.streak.multiStreak.multiStreakCount - 1
         ] = rewardAmount;
-        console.log("streak of streak count", streakOfStreakCount);
-
         // SOS reward calculation
-        if(streakOfStreakCount>1){
+        if(user.streak.multiStreak.streakOfStreakCount>1){
           if(user.streak.multiStreak.streakOfStreakRewards[user.streak.multiStreak.streakOfStreakRewards.length-1]!=0){
             const previousSOSRewards = user.streak.multiStreak.streakOfStreakRewards.length==0?0:user.streak.multiStreak.streakOfStreakRewards[user.streak.multiStreak.streakOfStreakRewards.length-1];
             user.streak.multiStreak.streakOfStreakRewards.push(previousSOSRewards+rewardAmount);
@@ -592,9 +595,8 @@ const calculateMultiStreak = async (
           else{
             user.streak.multiStreak.streakOfStreakRewards.push(user.streak.multiStreak.lastSOSReward+rewardAmount);
           }
-          
         }
-        else if(streakOfStreakCount==0){
+        else if(user.streak.multiStreak.streakOfStreakCount==1){
           for(i=0;i<user.streak.multiStreak.streakOfStreakRewards.length;i++){
             user.streak.multiStreak.unClaimedStreakOfStreakRewards = Number(user.streak.multiStreak.unClaimedStreakOfStreakRewards) + Number(user.streak.multiStreak.streakOfStreakRewards[i]);
             user.streak.multiStreak.streakOfStreakRewards[i]=0;
@@ -614,68 +616,70 @@ const calculateMultiStreak = async (
 //function to calculate streak of streaks(multi and sos)
 const streakOfStreak = async (req, res, next) => {
   try {
-    const { telegramId} = req.body;
+    const { telegramId } = req.body;
+
+    // Log the incoming request
+    logger.info(`Attempting to update Streak of Streak rewards for telegramId: ${telegramId}`);
+
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
     if (!user) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
+
     const lastLoginTime = user.lastLogin;
     let currentDate = new Date();
     const currentDay = currentDate.toISOString().split("T")[0];
     currentDate = new Date(currentDay);
+
     if (currentDate > distributionEndDate) {
-      console.log("Distribution Completed");
-      res.status(400).json({ message: "Distribution Completed" });
+      logger.warn(`Distribution period completed for telegramId: ${telegramId}`);
+      return res.status(400).json({ message: "Distribution Completed" });
     }
+
     // Calculate the difference in milliseconds
     const differenceInTime =
-      Math.abs(currentDate.getTime() - distributionEndDate.getTime())+1;
+      Math.abs(currentDate.getTime() - distributionEndDate.getTime()) + 1;
     // Convert the difference from milliseconds to days
     const differenceInDays = Math.floor(differenceInTime / (1000 * 3600 * 24));
 
     const todaysLogin =
-      ((await user.streak.loginStreak.loginStreakDate
-        .toISOString()
-        .split("T")[0]) == currentDay && await user.streak.loginStreak.loginStreakCount !=0);
+      ((user.streak.loginStreak.loginStreakDate.toISOString().split("T")[0]) === currentDay &&
+        user.streak.loginStreak.loginStreakCount !== 0);
     const todaysWatch =
-      ((await user.streak.watchStreak.watchStreakDate
-        .toISOString()
-        .split("T")[0]) == currentDay && await user.streak.watchStreak.watchStreakCount!=0);
+      ((user.streak.watchStreak.watchStreakDate.toISOString().split("T")[0]) === currentDay &&
+        user.streak.watchStreak.watchStreakCount !== 0);
     const todaysRefer =
-      ((await user.streak.referStreak.referStreakDate
-        .toISOString()
-        .split("T")[0]) == currentDay && await user.streak.referStreak.referStreakCount !=0);
+      ((user.streak.referStreak.referStreakDate.toISOString().split("T")[0]) === currentDay &&
+        user.streak.referStreak.referStreakCount !== 0);
     const todaysTask =
-      ((await user.streak.taskStreak.taskStreakDate
-        .toISOString()
-        .split("T")[0]) == currentDay && user.streak.taskStreak.taskStreakCount!=0);
+      ((user.streak.taskStreak.taskStreakDate.toISOString().split("T")[0]) === currentDay &&
+        user.streak.taskStreak.taskStreakCount !== 0);
 
-    if(todaysLogin && todaysWatch && todaysRefer && todaysTask){
+    if (todaysLogin && todaysWatch && todaysRefer && todaysTask) {
       const multiStreak = await calculateMultiStreak(
         user,
         todaysLogin,
-        todaysWatch,
-        todaysRefer,
-        todaysTask,
         differenceInDays
       );
-  
+
       await user.save();
+      logger.info(`Streak of Streak rewards updated successfully for telegramId: ${telegramId}`);
+
       res.status(200).json({
         message: "Streak of Streak rewards updated successfully",
         name: user.name,
         telegramId: user.telegramId,
         streakOfStreak: user.streak.multiStreak
       });
-    }
-    else{
+    } else {
       await user.save();
-      res
-        .status(400)
-        .json({ message: "User has not completed all streaks" });
+      logger.warn(`User has not completed all streaks for telegramId: ${telegramId}`);
+      res.status(400).json({ message: "User has not completed all streaks" });
     }
   } catch (err) {
+    logger.error(`Error while updating Streak of Streak rewards for telegramId: ${telegramId}. Error: ${err.message}`);
     next(err);
   }
 };
@@ -685,113 +689,142 @@ const streakOfStreak = async (req, res, next) => {
 const loginStreakRewardClaim = async (req, res, next) => {
   try {
     const { telegramId, index } = req.body;
+
+    // Log the incoming request
+    logger.info(`Attempting to claim Login Streak Reward for telegramId: ${telegramId}, index: ${index}`);
+
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
     if (!user) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
+
     const currentDate = new Date();
-    if (user.streak.loginStreak.loginStreakReward != 0) {
+
+    if (user.streak.loginStreak.loginStreakReward.length > 0 && user.streak.loginStreak.loginStreakReward[index] != 0) {
       const rewardAmount = user.streak.loginStreak.loginStreakReward[index];
-      // add to total reward of users
+
+      // Add to total rewards and streak rewards of the user
       user.totalRewards += rewardAmount;
-      // add to streak reward of users
       user.streakRewards += rewardAmount;
 
       // Check if there's already an entry for today in dailyRewards
-      let dailyReward = await user.dailyRewards.find(
+      let dailyReward = user.dailyRewards.find(
         (reward) =>
           reward.createdAt.toISOString().split("T")[0] ===
           currentDate.toISOString().split("T")[0]
       );
+
       if (dailyReward) {
         // Update the existing entry for today
-        user.dailyRewards[user.dailyRewards.length - 1].totalRewards +=
-          rewardAmount;
+        dailyReward.totalRewards += rewardAmount;
+        logger.info(`Updated existing daily reward for telegramId: ${telegramId} with reward amount: ${rewardAmount}`);
       } else {
         // Create a new entry for today
         user.dailyRewards.push({
           userId: user._id,
           telegramId: user.telegramId,
           totalRewards: rewardAmount,
-          createdAt: new Date(),
+          createdAt: currentDate,
         });
+        logger.info(`Created new daily reward entry for telegramId: ${telegramId} with reward amount: ${rewardAmount}`);
       }
+
+      // Set the claimed reward to 0
       user.streak.loginStreak.loginStreakReward[index] = 0;
-      //update the claimed login streak array value
+
+      // Update the claimed login streak days array
       const startDay = user.streak.startDay;
-      user.streak.claimedLoginDays[index+(startDay-1)]=true;
+      user.streak.claimedLoginDays[index + (startDay - 1)] = true;
+
       await user.save();
-      res
-        .status(200)
-        .json({
-          message: "Login Streak Rewards claimed successfully",
-          loginStreak: user.streak.loginStreak,
-          totalRewards: user.totalRewards,
-        });
+
+      logger.info(`Login Streak Reward claimed successfully for telegramId: ${telegramId}`);
+
+      res.status(200).json({
+        message: "Login Streak Rewards claimed successfully",
+        loginStreak: user.streak.loginStreak,
+        totalRewards: user.totalRewards,
+      });
     } else {
-      res
-        .status(400)
-        .json({ message: "User has no Login Streak rewards to claim" });
+      logger.warn(`No Login Streak rewards to claim for telegramId: ${telegramId}, index: ${index}`);
+      res.status(400).json({ message: "User has no Login Streak rewards to claim" });
     }
   } catch (err) {
+    logger.error(`Error while claiming Login Streak Reward for telegramId: ${telegramId}, index: ${index}. Error: ${err.message}`);
     next(err);
   }
 };
 
+
 const watchStreakRewardClaim = async (req, res, next) => {
   try {
     const { telegramId, index } = req.body;
+
+    // Log the incoming request
+    logger.info(`Attempting to claim Watch Streak Reward for telegramId: ${telegramId}, index: ${index}`);
+
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
     if (!user) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
+
     const currentDate = new Date();
-    if (user.streak.watchStreak.watchStreakReward != 0) {
+
+    if (user.streak.watchStreak.watchStreakReward.length > 0 && user.streak.watchStreak.watchStreakReward[index] != 0) {
       const rewardAmount = user.streak.watchStreak.watchStreakReward[index];
-      // add to total reward of users
+
+      // Add to total rewards and streak rewards of the user
       user.totalRewards += rewardAmount;
-      // add to streak reward of users
       user.streakRewards += rewardAmount;
 
       // Check if there's already an entry for today in dailyRewards
-      let dailyReward = await user.dailyRewards.find(
+      let dailyReward = user.dailyRewards.find(
         (reward) =>
           reward.createdAt.toISOString().split("T")[0] ===
           currentDate.toISOString().split("T")[0]
       );
+
       if (dailyReward) {
         // Update the existing entry for today
-        user.dailyRewards[user.dailyRewards.length - 1].totalRewards +=
-          rewardAmount;
+        dailyReward.totalRewards += rewardAmount;
+        logger.info(`Updated existing daily reward for telegramId: ${telegramId} with reward amount: ${rewardAmount}`);
       } else {
         // Create a new entry for today
         user.dailyRewards.push({
           userId: user._id,
           telegramId: user.telegramId,
           totalRewards: rewardAmount,
-          createdAt: new Date(),
+          createdAt: currentDate,
         });
+        logger.info(`Created new daily reward entry for telegramId: ${telegramId} with reward amount: ${rewardAmount}`);
       }
+
+      // Set the claimed reward to 0
       user.streak.watchStreak.watchStreakReward[index] = 0;
-      //update the claimed watch streak array value
+
+      // Update the claimed watch streak days array
       const startDay = user.streak.startDay;
-      user.streak.claimedWatchDays[index+(startDay-1)]=true;
+      user.streak.claimedWatchDays[index + (startDay - 1)] = true;
+
       await user.save();
-      res
-        .status(200)
-        .json({
-          message: "Watch Streak Rewards claimed successfully",
-          watchStreak: user.streak.watchStreak,
-          totalRewards: user.totalRewards,
-        });
+
+      logger.info(`Watch Streak Reward claimed successfully for telegramId: ${telegramId}`);
+
+      res.status(200).json({
+        message: "Watch Streak Rewards claimed successfully",
+        watchStreak: user.streak.watchStreak,
+        totalRewards: user.totalRewards,
+      });
     } else {
-      res
-        .status(400)
-        .json({ message: "User has no Watch Streak rewards to claim" });
+      logger.warn(`No Watch Streak rewards to claim for telegramId: ${telegramId}, index: ${index}`);
+      res.status(400).json({ message: "User has no Watch Streak rewards to claim" });
     }
   } catch (err) {
+    logger.error(`Error while claiming Watch Streak Reward for telegramId: ${telegramId}, index: ${index}. Error: ${err.message}`);
     next(err);
   }
 };
@@ -799,56 +832,70 @@ const watchStreakRewardClaim = async (req, res, next) => {
 const referStreakRewardClaim = async (req, res, next) => {
   try {
     const { telegramId, index } = req.body;
+
+    // Log the incoming request
+    logger.info(`Attempting to claim Refer Streak Reward for telegramId: ${telegramId}, index: ${index}`);
+
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
     if (!user) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
+
     const currentDate = new Date();
-    if (user.streak.referStreak.referStreakReward != 0) {
+
+    if (user.streak.referStreak.referStreakReward.length > 0 && user.streak.referStreak.referStreakReward[index] != 0) {
       const rewardAmount = user.streak.referStreak.referStreakReward[index];
-      // add to total reward of users
+
+      // Add to total rewards and streak rewards of the user
       user.totalRewards += rewardAmount;
-      // add to streak reward of users
       user.streakRewards += rewardAmount;
 
       // Check if there's already an entry for today in dailyRewards
-      let dailyReward = await user.dailyRewards.find(
+      let dailyReward = user.dailyRewards.find(
         (reward) =>
           reward.createdAt.toISOString().split("T")[0] ===
           currentDate.toISOString().split("T")[0]
       );
+
       if (dailyReward) {
         // Update the existing entry for today
-        user.dailyRewards[user.dailyRewards.length - 1].totalRewards +=
-          rewardAmount;
+        dailyReward.totalRewards += rewardAmount;
+        logger.info(`Updated existing daily reward for telegramId: ${telegramId} with reward amount: ${rewardAmount}`);
       } else {
         // Create a new entry for today
         user.dailyRewards.push({
           userId: user._id,
           telegramId: user.telegramId,
           totalRewards: rewardAmount,
-          createdAt: new Date(),
+          createdAt: currentDate,
         });
+        logger.info(`Created new daily reward entry for telegramId: ${telegramId} with reward amount: ${rewardAmount}`);
       }
+
+      // Set the claimed reward to 0
       user.streak.referStreak.referStreakReward[index] = 0;
-      //update the claimed Refer streak array value
+
+      // Update the claimed refer streak days array
       const startDay = user.streak.startDay;
-      user.streak.claimedReferDays[index+(startDay-1)]=true;
+      user.streak.claimedReferDays[index + (startDay - 1)] = true;
+
       await user.save();
-      res
-        .status(200)
-        .json({
-          message: "Refer Streak Rewards claimed successfully",
-          referStreak: user.streak.referStreak,
-          totalRewards: user.totalRewards,
-        });
+
+      logger.info(`Refer Streak Reward claimed successfully for telegramId: ${telegramId}`);
+
+      res.status(200).json({
+        message: "Refer Streak Rewards claimed successfully",
+        referStreak: user.streak.referStreak,
+        totalRewards: user.totalRewards,
+      });
     } else {
-      res
-        .status(400)
-        .json({ message: "User has no Refer Streak rewards to claim" });
+      logger.warn(`No Refer Streak rewards to claim for telegramId: ${telegramId}, index: ${index}`);
+      res.status(400).json({ message: "User has no Refer Streak rewards to claim" });
     }
   } catch (err) {
+    logger.error(`Error while claiming Refer Streak Reward for telegramId: ${telegramId}, index: ${index}. Error: ${err.message}`);
     next(err);
   }
 };
@@ -856,56 +903,70 @@ const referStreakRewardClaim = async (req, res, next) => {
 const taskStreakRewardClaim = async (req, res, next) => {
   try {
     const { telegramId, index } = req.body;
+
+    // Log the incoming request
+    logger.info(`Attempting to claim Task Streak Reward for telegramId: ${telegramId}, index: ${index}`);
+
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
     if (!user) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
+
     const currentDate = new Date();
-    if (user.streak.taskStreak.taskStreakReward != 0) {
+
+    if (user.streak.taskStreak.taskStreakReward.length > 0 && user.streak.taskStreak.taskStreakReward[index] != 0) {
       const rewardAmount = user.streak.taskStreak.taskStreakReward[index];
-      // add to total reward of users
+
+      // Add to total rewards and streak rewards of the user
       user.totalRewards += rewardAmount;
-      // add to streak reward of users
       user.streakRewards += rewardAmount;
 
       // Check if there's already an entry for today in dailyRewards
-      let dailyReward = await user.dailyRewards.find(
+      let dailyReward = user.dailyRewards.find(
         (reward) =>
           reward.createdAt.toISOString().split("T")[0] ===
           currentDate.toISOString().split("T")[0]
       );
+
       if (dailyReward) {
         // Update the existing entry for today
-        user.dailyRewards[user.dailyRewards.length - 1].totalRewards +=
-          rewardAmount;
+        dailyReward.totalRewards += rewardAmount;
+        logger.info(`Updated existing daily reward for telegramId: ${telegramId} with reward amount: ${rewardAmount}`);
       } else {
         // Create a new entry for today
         user.dailyRewards.push({
           userId: user._id,
           telegramId: user.telegramId,
           totalRewards: rewardAmount,
-          createdAt: new Date(),
+          createdAt: currentDate,
         });
+        logger.info(`Created new daily reward entry for telegramId: ${telegramId} with reward amount: ${rewardAmount}`);
       }
+
+      // Set the claimed reward to 0
       user.streak.taskStreak.taskStreakReward[index] = 0;
-      //update the claimed task streak array value
+
+      // Update the claimedTaskDays array
       const startDay = user.streak.startDay;
-      user.streak.claimedTaskDays[index+(startDay-1)]=true;
+      user.streak.claimedTaskDays[index + (startDay - 1)] = true;
+
       await user.save();
-      res
-        .status(200)
-        .json({
-          message: "Task Streak Rewards claimed successfully",
-          TaskStreak: user.streak.taskStreak,
-          totalRewards: user.totalRewards,
-        });
+
+      logger.info(`Task Streak Reward claimed successfully for telegramId: ${telegramId}`);
+
+      res.status(200).json({
+        message: "Task Streak Rewards claimed successfully",
+        TaskStreak: user.streak.taskStreak,
+        totalRewards: user.totalRewards,
+      });
     } else {
-      res
-        .status(400)
-        .json({ message: "User has no Task Streak rewards to claim" });
+      logger.warn(`No Task Streak rewards to claim for telegramId: ${telegramId}, index: ${index}`);
+      res.status(400).json({ message: "User has no Task Streak rewards to claim" });
     }
   } catch (err) {
+    logger.error(`Error while claiming Task Streak Reward for telegramId: ${telegramId}, index: ${index}. Error: ${err.message}`);
     next(err);
   }
 };
@@ -913,118 +974,147 @@ const taskStreakRewardClaim = async (req, res, next) => {
 const multiStreakRewardClaim = async (req, res, next) => {
   try {
     const { telegramId, index } = req.body;
+
+    // Log the incoming request
+    logger.info(`Attempting to claim Multi Streak Reward for telegramId: ${telegramId}, index: ${index}`);
+
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
     if (!user) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
+
     const currentDate = new Date();
-    if (user.streak.multiStreak.multiStreakReward != 0) {
+
+    if (user.streak.multiStreak.multiStreakReward.length > 0 && user.streak.multiStreak.multiStreakReward[index] != 0) {
       const rewardAmount = user.streak.multiStreak.multiStreakReward[index];
-      // add to total reward of users
+
+      // Add to total rewards and streak rewards of the user
       user.totalRewards += rewardAmount;
-      // add to streak reward of users
       user.streakRewards += rewardAmount;
 
       // Check if there's already an entry for today in dailyRewards
-      let dailyReward = await user.dailyRewards.find(
+      let dailyReward = user.dailyRewards.find(
         (reward) =>
           reward.createdAt.toISOString().split("T")[0] ===
           currentDate.toISOString().split("T")[0]
       );
+
       if (dailyReward) {
         // Update the existing entry for today
-        user.dailyRewards[user.dailyRewards.length - 1].totalRewards +=
-          rewardAmount;
+        dailyReward.totalRewards += rewardAmount;
+        logger.info(`Updated existing daily reward for telegramId: ${telegramId} with reward amount: ${rewardAmount}`);
       } else {
         // Create a new entry for today
         user.dailyRewards.push({
           userId: user._id,
           telegramId: user.telegramId,
           totalRewards: rewardAmount,
-          createdAt: new Date(),
+          createdAt: currentDate,
         });
+        logger.info(`Created new daily reward entry for telegramId: ${telegramId} with reward amount: ${rewardAmount}`);
       }
+
+      // Set the claimed reward to 0
       user.streak.multiStreak.multiStreakReward[index] = 0;
-      //update the claimed multi streak array value
+
+      // Update the claimedMultiDays array
       const startDay = user.streak.startDay;
-      user.streak.claimedMultiDays[index+(startDay-1)]=true;
+      user.streak.claimedMultiDays[index + (startDay - 1)] = true;
+
       await user.save();
-      res
-        .status(200)
-        .json({
-          message: "Multi Streak Rewards claimed successfully",
-          multiStreak: user.streak.multiStreak,
-          totalRewards: user.totalRewards,
-        });
+
+      logger.info(`Multi Streak Reward claimed successfully for telegramId: ${telegramId}`);
+
+      res.status(200).json({
+        message: "Multi Streak Rewards claimed successfully",
+        multiStreak: user.streak.multiStreak,
+        totalRewards: user.totalRewards,
+      });
     } else {
-      res
-        .status(400)
-        .json({ message: "User has no Multi Streak rewards to claim" });
+      logger.warn(`No Multi Streak rewards to claim for telegramId: ${telegramId}, index: ${index}`);
+      res.status(400).json({ message: "User has no Multi Streak rewards to claim" });
     }
   } catch (err) {
+    logger.error(`Error while claiming Multi Streak Reward for telegramId: ${telegramId}, index: ${index}. Error: ${err.message}`);
     next(err);
   }
 };
 
 const streakOfStreakRewardClaim = async (req, res, next) => {
   try {
-    console.log("inside");
-    const { telegramId} = req.body;
+    const { telegramId } = req.body;
+
+    // Log the incoming request
+    logger.info(`Attempting to claim Streak of Streak Rewards for telegramId: ${telegramId}`);
+
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
     if (!user) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
+
     const currentDate = new Date();
-    if (user.streak.multiStreak.streakOfStreakRewards != 0) {
-      let rewardAmount=0;
-      user.streak.multiStreak.lastSOSReward = user.streak.multiStreak.streakOfStreakRewards[user.streak.multiStreak.streakOfStreakRewards.length-1];
-      for(i=0;i<user.streak.multiStreak.streakOfStreakRewards.length;i++){
+
+    if (user.streak.multiStreak.streakOfStreakRewards.length > 0) {
+      logger.info(`Streak of Streak Rewards available for telegramId: ${telegramId}`);
+
+      let rewardAmount = 0;
+      user.streak.multiStreak.lastSOSReward = user.streak.multiStreak.streakOfStreakRewards[user.streak.multiStreak.streakOfStreakRewards.length - 1];
+
+      for (let i = 0; i < user.streak.multiStreak.streakOfStreakRewards.length; i++) {
         rewardAmount += user.streak.multiStreak.streakOfStreakRewards[i];
-        user.streak.multiStreak.streakOfStreakRewards[i]=0;
+        user.streak.multiStreak.streakOfStreakRewards[i] = 0;
       }
-      // add to total reward of users
+
+      // Add to total reward of users
       user.totalRewards += rewardAmount;
-      // add to streak reward of users
+      // Add to streak reward of users
       user.streakRewards += rewardAmount;
 
       // Check if there's already an entry for today in dailyRewards
-      let dailyReward = await user.dailyRewards.find(
+      let dailyReward = user.dailyRewards.find(
         (reward) =>
           reward.createdAt.toISOString().split("T")[0] ===
           currentDate.toISOString().split("T")[0]
       );
+
       if (dailyReward) {
         // Update the existing entry for today
-        user.dailyRewards[user.dailyRewards.length - 1].totalRewards +=
-          rewardAmount;
+        dailyReward.totalRewards += rewardAmount;
+        logger.info(`Updated existing daily reward for telegramId: ${telegramId} with reward amount: ${rewardAmount}`);
       } else {
         // Create a new entry for today
         user.dailyRewards.push({
           userId: user._id,
           telegramId: user.telegramId,
           totalRewards: rewardAmount,
-          createdAt: new Date(),
+          createdAt: currentDate,
         });
+        logger.info(`Created new daily reward entry for telegramId: ${telegramId} with reward amount: ${rewardAmount}`);
       }
+
       await user.save();
-      res
-        .status(200)
-        .json({
-          message: "Streak of Streak Rewards claimed successfully",
-          multiStreak: user.streak.multiStreak,
-          totalRewards: user.totalRewards,
-        });
+
+      logger.info(`Streak of Streak Rewards claimed successfully for telegramId: ${telegramId}`);
+
+      res.status(200).json({
+        message: "Streak of Streak Rewards claimed successfully",
+        multiStreak: user.streak.multiStreak,
+        totalRewards: user.totalRewards,
+      });
     } else {
-      res
-        .status(400)
-        .json({ message: "User has no Streak of Streak rewards to claim" });
+      logger.warn(`No Streak of Streak rewards to claim for telegramId: ${telegramId}`);
+      res.status(400).json({ message: "User has no Streak of Streak rewards to claim" });
     }
   } catch (err) {
+    logger.error(`Error while claiming Streak of Streak Rewards for telegramId: ${telegramId}. Error: ${err.message}`);
     next(err);
   }
 };
+
 
 const unClaimedStreakRewardsClaim = async (user) => {
   try {
@@ -1151,27 +1241,41 @@ const updateClaimedLoginDaysArray = async (req, res, next) => {
   try {
     const { telegramId, claimedDayArray } = req.body;
 
+    // Log the incoming request
+    logger.info(`Updating claimedLoginDays array for telegramId: ${telegramId}`);
+
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
     if (!user) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
 
     // Validate claimedDayArray length if needed
     if (!Array.isArray(claimedDayArray) || claimedDayArray.length !== 7) {
+      logger.warn(`Invalid claimed login array for telegramId: ${telegramId}`);
       return res.status(400).json({ message: "Invalid claimed login array" });
     }
 
     // Update the claimedLoginDays array
     user.streak.claimedLoginDays = claimedDayArray;
+
     // Save the updated user document
     await user.save();
 
+    // Log the successful update
+    logger.info(`claimedLoginDays array updated successfully for telegramId: ${telegramId}`);
+
     // Send success response
-    res.status(200).json({ message: "claimedLoginDays array updated successfully" ,
-      claimedLoginDays: user.streak.claimedLoginDays
+    res.status(200).json({
+      message: "claimedLoginDays array updated successfully",
+      claimedLoginDays: user.streak.claimedLoginDays,
     });
   } catch (err) {
+    // Log the error
+    logger.error(`An error occurred while updating claimedLoginDays array for telegramId: ${telegramId}. Error: ${err.message}`);
+
+    // Pass the error to the next middleware
     next(err);
   }
 };
@@ -1180,26 +1284,41 @@ const updateClaimedWatchDaysArray = async (req, res, next) => {
   try {
     const { telegramId, claimedDayArray } = req.body;
 
+    // Log the incoming request
+    logger.info(`Updating claimedWatchDays array for telegramId: ${telegramId}`);
+
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
     if (!user) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
 
     // Validate claimedDayArray length if needed
     if (!Array.isArray(claimedDayArray) || claimedDayArray.length !== 7) {
+      logger.warn(`Invalid claimed watch array for telegramId: ${telegramId}`);
       return res.status(400).json({ message: "Invalid claimed watch array" });
     }
 
     // Update the claimedWatchDays array
     user.streak.claimedWatchDays = claimedDayArray;
+
     // Save the updated user document
     await user.save();
 
+    // Log the successful update
+    logger.info(`claimedWatchDays array updated successfully for telegramId: ${telegramId}`);
+
     // Send success response
-    res.status(200).json({ message: "claimedWatchDays array updated successfully",
-      claimedWatchDays: user.streak.claimedWatchDays });
+    res.status(200).json({
+      message: "claimedWatchDays array updated successfully",
+      claimedWatchDays: user.streak.claimedWatchDays,
+    });
   } catch (err) {
+    // Log the error
+    logger.error(`An error occurred while updating claimedWatchDays array for telegramId: ${telegramId}. Error: ${err.message}`);
+
+    // Pass the error to the next middleware
     next(err);
   }
 };
@@ -1209,26 +1328,41 @@ const updateClaimedReferDaysArray = async (req, res, next) => {
   try {
     const { telegramId, claimedDayArray } = req.body;
 
+    // Log the incoming request
+    logger.info(`Updating claimedReferDays array for telegramId: ${telegramId}`);
+
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
     if (!user) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
 
     // Validate claimedDayArray length if needed
     if (!Array.isArray(claimedDayArray) || claimedDayArray.length !== 7) {
+      logger.warn(`Invalid claimed refer array for telegramId: ${telegramId}`);
       return res.status(400).json({ message: "Invalid claimed refer array" });
     }
 
     // Update the claimedReferDays array
     user.streak.claimedReferDays = claimedDayArray;
+
     // Save the updated user document
     await user.save();
 
+    // Log the successful update
+    logger.info(`claimedReferDays array updated successfully for telegramId: ${telegramId}`);
+
     // Send success response
-    res.status(200).json({ message: "claimedReferDays array updated successfully",
-      claimedReferDays: user.streak.claimedReferDays });
+    res.status(200).json({
+      message: "claimedReferDays array updated successfully",
+      claimedReferDays: user.streak.claimedReferDays,
+    });
   } catch (err) {
+    // Log the error
+    logger.error(`An error occurred while updating claimedReferDays array for telegramId: ${telegramId}. Error: ${err.message}`);
+
+    // Pass the error to the next middleware
     next(err);
   }
 };
@@ -1238,26 +1372,41 @@ const updateClaimedTaskDaysArray = async (req, res, next) => {
   try {
     const { telegramId, claimedDayArray } = req.body;
 
+    // Log the incoming request
+    logger.info(`Updating claimedTaskDays array for telegramId: ${telegramId}`);
+
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
     if (!user) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
 
     // Validate claimedDayArray length if needed
     if (!Array.isArray(claimedDayArray) || claimedDayArray.length !== 7) {
+      logger.warn(`Invalid claimed task array for telegramId: ${telegramId}`);
       return res.status(400).json({ message: "Invalid claimed task array" });
     }
 
     // Update the claimedTaskDays array
     user.streak.claimedTaskDays = claimedDayArray;
+
     // Save the updated user document
     await user.save();
 
+    // Log the successful update
+    logger.info(`claimedTaskDays array updated successfully for telegramId: ${telegramId}`);
+
     // Send success response
-    res.status(200).json({ message: "claimedTaskDays array updated successfully" ,
-      claimedTaskDays: user.streak.claimedTaskDays});
+    res.status(200).json({
+      message: "claimedTaskDays array updated successfully",
+      claimedTaskDays: user.streak.claimedTaskDays,
+    });
   } catch (err) {
+    // Log the error
+    logger.error(`An error occurred while updating claimedTaskDays array for telegramId: ${telegramId}. Error: ${err.message}`);
+
+    // Pass the error to the next middleware
     next(err);
   }
 };
@@ -1267,29 +1416,45 @@ const updateClaimedMultiDaysArray = async (req, res, next) => {
   try {
     const { telegramId, claimedDayArray } = req.body;
 
+    // Log the incoming request
+    logger.info(`Updating claimedMultiDays array for telegramId: ${telegramId}`);
+
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
     if (!user) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
 
     // Validate claimedDayArray length if needed
     if (!Array.isArray(claimedDayArray) || claimedDayArray.length !== 7) {
+      logger.warn(`Invalid claimed multi array for telegramId: ${telegramId}`);
       return res.status(400).json({ message: "Invalid claimed multi array" });
     }
 
     // Update the claimedMultiDays array
     user.streak.claimedMultiDays = claimedDayArray;
+
     // Save the updated user document
     await user.save();
 
+    // Log the successful update
+    logger.info(`claimedMultiDays array updated successfully for telegramId: ${telegramId}`);
+
     // Send success response
-    res.status(200).json({ message: "claimedMultiDays array updated successfully",
-      claimedMultiDays: user.streak.claimedMultiDays });
+    res.status(200).json({
+      message: "claimedMultiDays array updated successfully",
+      claimedMultiDays: user.streak.claimedMultiDays,
+    });
   } catch (err) {
+    // Log the error
+    logger.error(`An error occurred while updating claimedMultiDays array for telegramId: ${telegramId}. Error: ${err.message}`);
+
+    // Pass the error to the next middleware
     next(err);
   }
 };
+
 
 
 const userStreaks = async (req, res, next) => {
@@ -1299,18 +1464,27 @@ const userStreaks = async (req, res, next) => {
     // Trim leading and trailing spaces
     telegramId = telegramId.trim();
 
+    // Log the incoming request with the telegramId
+    logger.info(`Fetching streak details for telegramId: ${telegramId}`);
+
     // Find the user detail document for the given telegramId
     const user = await User.findOne({ telegramId: telegramId });
 
     // Check if user detail was found
     if (!user) {
+      logger.warn(`User not found for telegramId: ${telegramId}`);
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Log the retrieved user streak details
+    logger.info(`User streak details retrieved for telegramId: ${telegramId}`);
+
     // Return the user streak details in the response
-    console.log(user.streak);
     return res.status(200).json(user.streak);
   } catch (error) {
+    // Log the error
+    logger.error(`An error occurred while fetching streak details for telegramId: ${telegramId}. Error: ${error.message}`);
+
     // Handle any errors that occur
     return res
       .status(500)
