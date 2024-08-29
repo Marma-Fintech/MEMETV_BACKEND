@@ -10,8 +10,16 @@ const {
   taskStreakRewardClaim,
   multiStreakRewardClaim,
   streakOfStreakRewardClaim,
-  unClaimedStreakRewardsClaim
+  // unClaimedStreakRewardsClaim,
+  updateClaimedLoginDaysArray,
+  updateClaimedWatchDaysArray,
+  updateClaimedReferDaysArray,
+  updateClaimedTaskDaysArray,
+  updateClaimedMultiDaysArray,
+  userStreaks,
 } = require("../controllers/userStreakController");
+
+
 router.post(
   "/streak",
   celebrate({
@@ -87,20 +95,84 @@ router.post(
   celebrate({
     [Segments.BODY]: Joi.object().keys({
       telegramId: Joi.string().required(),
-      index: Joi.number().required(),
     }),
   }),
   streakOfStreakRewardClaim
 );
 
+// router.post(
+//   "/unClaimedStreakRewardsClaim",
+//   celebrate({
+//     [Segments.BODY]: Joi.object().keys({
+//       telegramId: Joi.string().required()
+//     }),
+//   }),
+//   unClaimedStreakRewardsClaim
+// );
+
 router.post(
-  "/unClaimedStreakRewardsClaim",
+  "/updateClaimedLoginDaysArray",
   celebrate({
     [Segments.BODY]: Joi.object().keys({
-      telegramId: Joi.string().required()
+      telegramId: Joi.string().required(),
+      claimedDayArray: Joi.array().required(),
     }),
   }),
-  unClaimedStreakRewardsClaim
+  updateClaimedLoginDaysArray
+);
+
+router.post(
+  "/updateClaimedWatchDaysArray",
+  celebrate({
+    [Segments.BODY]: Joi.object().keys({
+      telegramId: Joi.string().required(),
+      claimedDayArray: Joi.array().required(),
+    }),
+  }),
+  updateClaimedWatchDaysArray
+);
+
+router.post(
+  "/updateClaimedReferDaysArray",
+  celebrate({
+    [Segments.BODY]: Joi.object().keys({
+      telegramId: Joi.string().required(),
+      claimedDayArray: Joi.array().required(),
+    }),
+  }),
+  updateClaimedReferDaysArray
+);
+
+router.post(
+  "/updateClaimedTaskDaysArray",
+  celebrate({
+    [Segments.BODY]: Joi.object().keys({
+      telegramId: Joi.string().required(),
+      claimedDayArray: Joi.array().required(),
+    }),
+  }),
+  updateClaimedTaskDaysArray
+);
+
+router.post(
+  "/updateClaimedMultiDaysArray",
+  celebrate({
+    [Segments.BODY]: Joi.object().keys({
+      telegramId: Joi.string().required(),
+      claimedDayArray: Joi.array().required(),
+    }),
+  }),
+  updateClaimedMultiDaysArray
+);
+
+router.get(
+  "/userStreaks/:telegramId",
+  celebrate({
+    [Segments.PARAMS]: Joi.object().keys({
+      telegramId: Joi.string().required(),
+    }),
+  }),
+  userStreaks
 );
 router.use(errors());
 module.exports = router;

@@ -180,7 +180,24 @@ const userSchema = mongoose.Schema(
         unClaimedStreakOfStreakRewards:{
           type: Number,
           default: 0,
+        },
+        SOSCount:{
+          type: Number,
+          default:0,
+        },
+        lastSOSReward:{
+          type: Number,
+          default:0,
         }
+      },
+      claimedLoginDays: { type: [Boolean], default: () => Array(7).fill(false) },
+      claimedWatchDays: { type: [Boolean], default: () => Array(7).fill(false) },
+      claimedReferDays: { type: [Boolean], default: () => Array(7).fill(false) },
+      claimedTaskDays: { type: [Boolean], default: () => Array(7).fill(false) },
+      claimedMultiDays: { type: [Boolean], default: () => Array(7).fill(false) },
+      startDay: {
+        type: Number,
+        default: 0,
       },
     },
 yourReferenceIds: [
