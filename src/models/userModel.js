@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const { streakOfStreak } = require("../controllers/userStreakController");
 
 const userSchema = mongoose.Schema(
   {
