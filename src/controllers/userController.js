@@ -613,7 +613,13 @@ const weekRewards = async (req, res, next) => {
     const getRewardsForWeek = (weekStartDate, weekEndDate) => {
       const weekRewards = userDetail.dailyRewards.filter((reward) => {
         const rewardDate = new Date(reward.createdAt);
-        return rewardDate >= weekStartDate && rewardDate <= weekEndDate;
+
+        // Normalize dates to strip time part
+        const normalizedRewardDate = rewardDate.toISOString().split("T")[0];
+        const normalizedWeekStartDate = weekStartDate.toISOString().split("T")[0];
+        const normalizedWeekEndDate = weekEndDate.toISOString().split("T")[0];
+
+        return normalizedRewardDate >= normalizedWeekStartDate && normalizedRewardDate <= normalizedWeekEndDate;
       });
 
       const rewardsForWeek = [];
@@ -685,6 +691,7 @@ const weekRewards = async (req, res, next) => {
     next(err);
   }
 };
+
 
 
 
