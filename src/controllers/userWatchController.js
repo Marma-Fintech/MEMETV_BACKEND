@@ -386,18 +386,20 @@ const stakingRewards = async (req, res, next) => {
     // Check for level-up bonuses and update the user's level
     let currentLevel = user.level;
     while (
-      currentLevel < levelUpBonuses.length &&
-      user.totalRewards >= levelUpBonuses[currentLevel - 1]
+      currentLevel < thresholds.length &&
+      user.totalRewards >= thresholds[currentLevel].limit
     ) {
-      // Add level-up bonus points to both totalRewards and levelUpRewards
-      const levelUpBonus = levelUpBonuses[currentLevel - 1];
-      user.totalRewards += levelUpBonus;
-      user.levelUpRewards += levelUpBonus;
-      // Update the user's level
-      currentLevel += 1;
+      // Apply level-up bonus if the user is leveling up
+      if (currentLevel > 0 && user.totalRewards >= thresholds[currentLevel].limit) {
+        const levelUpBonus = levelUpBonuses[currentLevel - 1];
+        user.totalRewards += levelUpBonus;
+        user.levelUpRewards += levelUpBonus;
 
-      // Log the level-up
-      logger.info(`User ${user._id} leveled up to ${currentLevel} with bonus ${levelUpBonus}`);
+        // Log the level-up
+        logger.info(`User ${user._id} leveled up to ${currentLevel + 1} with bonus ${levelUpBonus}`);
+      }
+      // Increment the level
+      currentLevel += 1;
     }
     user.level = currentLevel;
 
