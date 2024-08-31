@@ -205,26 +205,32 @@ const login = async (req, res, next) => {
       if (referringUser) {
         referringUser.yourReferenceIds.push({ userId: user._id });
         const referralReward = 10000;
-
+      
         referringUser.totalRewards += referralReward;
         referringUser.referRewards += referralReward;
-
+      
+        // Calculate milestone rewards based on the current number of referrals
         const milestoneRewards = calculateMilestoneRewards(referringUser.yourReferenceIds.length);
-        referringUser.referRewards += milestoneRewards; // Add milestone rewards to referRewards
-        referringUser.totalRewards += milestoneRewards;
-
+        console.log("milestoneRewards", milestoneRewards);
+      
+        // Add milestone rewards only if it's the first time hitting this milestone
+        if (milestoneRewards > 0) {
+          referringUser.referRewards += milestoneRewards;
+          referringUser.totalRewards += milestoneRewards;
+        }
+      
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0);
         const todayString = today.toISOString().split("T")[0];
-
+      
         let dailyReward = referringUser.dailyRewards.find((dr) => {
           const rewardDate = new Date(dr.createdAt);
           rewardDate.setUTCHours(0, 0, 0, 0);
           return rewardDate.toISOString().split("T")[0] === todayString;
         });
-
+      
         const totalDailyRewards = referralReward + milestoneRewards;
-
+      
         if (dailyReward) {
           dailyReward.totalRewards += totalDailyRewards;
         } else {
@@ -235,14 +241,15 @@ const login = async (req, res, next) => {
             createdAt: today,
           });
         }
-
+      
         referringUser.boosters.push("2x", "2x", "2x", "2x", "2x");
-
+      
         updateLevel(referringUser, currentDateString);
-
+      
         await referringUser.save();
         logger.info(`User ${referringUser.name} referred a new user and received rewards`);
       }
+      
     } else {
       // Update existing user
       const lastLoginDate = new Date(user.lastLogin);
@@ -303,13 +310,10 @@ const calculateMilestoneRewards = (numberOfReferrals) => {
     { referrals: 100, reward: 666667 },
   ];
 
-  return milestones.reduce((totalReward, milestone) => {
-    if (numberOfReferrals >= milestone.referrals) {
-      return totalReward + milestone.reward;
-    }
-    return totalReward;
-  }, 0);
+  const nextMilestone = milestones.find((milestone) => numberOfReferrals === milestone.referrals);
+  return nextMilestone ? nextMilestone.reward : 0;
 };
+
 
 
 const userDetails = async (req, res, next) => {
