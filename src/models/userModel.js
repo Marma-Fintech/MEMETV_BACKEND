@@ -1,62 +1,62 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose')
 
 const userSchema = mongoose.Schema(
   {
     name: {
       type: String,
-      trim: true,
+      trim: true
     },
     telegramId: {
-      type: String,
+      type: String
     },
     refId: {
-      type: String,
+      type: String
     },
     referredById: {
       type: String,
-      default: "",
+      default: ''
     },
     totalRewards: {
       type: Number,
-      default: 500,
+      default: 500
     },
     level: {
       type: Number,
-      default: 1,
+      default: 1
     },
     watchRewards: {
       type: Number,
-      default: 0,
+      default: 0
     },
     referRewards: {
       type: Number,
-      default: 0,
+      default: 0
     },
     levelUpRewards: {
       type: Number,
-      default: 500,
+      default: 500
     },
     gameRewards: {
       gamePoints: {
         type: Number,
-        default: 0,
+        default: 0
       },
       createdAt: {
         type: Date,
         default: 0
-      },
+      }
     },
-    stakingRewards:{
+    stakingRewards: {
       type: Number,
-      default: 0,
+      default: 0
     },
     taskRewards: {
       type: Number,
-      default: 0,
+      default: 0
     },
     streakRewards: {
       type: Number,
-      default: 0,
+      default: 0
     },
     boosters: [{ type: String }],
     lastLogin: { type: Date }, // Track the last login time
@@ -64,13 +64,13 @@ const userSchema = mongoose.Schema(
       {
         userId: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "Users",
+          ref: 'Users'
         },
         telegramId: {
-          type: String,
+          type: String
         },
         totalRewards: {
-          type: Number,
+          type: Number
         },
         userStaking: {
           type: Boolean,
@@ -78,159 +78,182 @@ const userSchema = mongoose.Schema(
         },
         createdAt: {
           type: Date,
-          default: Date.now,
-        },
-      },
+          default: Date.now
+        }
+      }
     ],
-    streak:
-    {
+    streak: {
       loginStreak: {
         loginStreakCount: {
           type: Number,
-          default: 0,
+          default: 0
         },
         loginStreakDate: {
           type: Date,
-          default: Date.now,
+          default: Date.now
         },
-        loginStreakReward: [{
-          type: Number,
-          default: 0,
-        }],
+        loginStreakReward: [
+          {
+            type: Number,
+            default: 0
+          }
+        ],
         unClaimedLoginStreakReward: {
           type: Number,
-          default: 0,
-        },
+          default: 0
+        }
       },
       watchStreak: {
         watchStreakCount: {
           type: Number,
-          default: 0,
+          default: 0
         },
         watchStreakDate: {
           type: Date,
-          default: Date.now,
+          default: Date.now
         },
-        watchStreakReward: [{
-          type: Number,
-          default: 0,
-        }],
+        watchStreakReward: [
+          {
+            type: Number,
+            default: 0
+          }
+        ],
         unClaimedWatchStreakReward: {
           type: Number,
-          default: 0,
-        },
+          default: 0
+        }
       },
       referStreak: {
         referStreakCount: {
           type: Number,
-          default: 0,
+          default: 0
         },
         referStreakDate: {
           type: Date,
-          default: Date.now,
+          default: Date.now
         },
-        referStreakReward: [{
-          type: Number,
-          default: 0,
-        }],
+        referStreakReward: [
+          {
+            type: Number,
+            default: 0
+          }
+        ],
         unClaimedReferStreakReward: {
           type: Number,
-          default: 0,
-        },
+          default: 0
+        }
       },
       taskStreak: {
         taskStreakCount: {
           type: Number,
-          default: 0,
+          default: 0
         },
         taskStreakDate: {
           type: Date,
-          default: Date.now,
+          default: Date.now
         },
-        taskStreakReward: [{
-          type: Number,
-          default: 0,
-        }],
+        taskStreakReward: [
+          {
+            type: Number,
+            default: 0
+          }
+        ],
         unClaimedTaskStreakReward: {
           type: Number,
-          default: 0,
-        },
+          default: 0
+        }
       },
       multiStreak: {
         multiStreakCount: {
           type: Number,
-          default: 0,
+          default: 0
         },
         multiStreakDate: {
           type: Date,
-          default: Date.now,
+          default: Date.now
         },
-        multiStreakReward: [{
-          type: Number,
-          default: 0,
-        }],
+        multiStreakReward: [
+          {
+            type: Number,
+            default: 0
+          }
+        ],
         unClaimedMultiStreakReward: {
           type: Number,
-          default: 0,
+          default: 0
         },
-        streakOfStreakRewards:[{
+        streakOfStreakRewards: [
+          {
+            type: Number,
+            default: 0
+          }
+        ],
+        unClaimedStreakOfStreakRewards: {
           type: Number,
-          default: 0,
-        }],
-        unClaimedStreakOfStreakRewards:{
-          type: Number,
-          default: 0,
+          default: 0
         },
-        streakOfStreakCount:{
+        streakOfStreakCount: {
           type: Number,
-          default:0,
+          default: 0
         },
-        lastSOSReward:{
+        lastSOSReward: {
           type: Number,
-          default:0,
+          default: 0
         }
       },
-      claimedLoginDays: { type: [Boolean], default: () => Array(7).fill(false) },
-      claimedWatchDays: { type: [Boolean], default: () => Array(7).fill(false) },
-      claimedReferDays: { type: [Boolean], default: () => Array(7).fill(false) },
+      claimedLoginDays: {
+        type: [Boolean],
+        default: () => Array(7).fill(false)
+      },
+      claimedWatchDays: {
+        type: [Boolean],
+        default: () => Array(7).fill(false)
+      },
+      claimedReferDays: {
+        type: [Boolean],
+        default: () => Array(7).fill(false)
+      },
       claimedTaskDays: { type: [Boolean], default: () => Array(7).fill(false) },
-      claimedMultiDays: { type: [Boolean], default: () => Array(7).fill(false) },
+      claimedMultiDays: {
+        type: [Boolean],
+        default: () => Array(7).fill(false)
+      },
       startDay: {
         type: Number,
-        default: 0,
-      },
+        default: 0
+      }
     },
-yourReferenceIds: [
+    yourReferenceIds: [
       {
         userId: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "Users",
-          required: true,
+          ref: 'Users',
+          required: true
         },
         createdAt: {
           type: Date,
-          default: Date.now,
-        },
-      },
+          default: Date.now
+        }
+      }
     ],
     staking: [
       {
         userId: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "Users",
+          ref: 'Users'
         },
         createdAt: {
           type: Date,
-          default: Date.now,
-        },
-      },
+          default: Date.now
+        }
+      }
     ]
   },
   {
-    timestamps: true,
+    timestamps: true
   }
-);
+)
 
-const User = mongoose.model("User", userSchema);
+const User = mongoose.model('User', userSchema)
 
-module.exports = User;
+module.exports = User

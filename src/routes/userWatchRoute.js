@@ -1,81 +1,81 @@
-const express = require("express");
-const router = express.Router();
-const { celebrate, Joi, errors, Segments } = require("celebrate");
+const express = require('express')
+const router = express.Router()
+const { celebrate, Joi, errors, Segments } = require('celebrate')
 const {
   userWatchRewards,
   boosterDetails,
   purchaseBooster,
   stakingRewards,
   popularUser,
-  yourReferrals,
-} = require("../controllers/userWatchController");
+  yourReferrals
+} = require('../controllers/userWatchController')
 
 router.post(
-  "/userWatchRewards",
+  '/userWatchRewards',
   celebrate({
     [Segments.BODY]: Joi.object().keys({
       telegramId: Joi.string().required(),
       userWatchSeconds: Joi.number().optional(),
       boosterPoints: Joi.string().optional(),
-      boosters: Joi.array().items(Joi.string()).optional(),
-    }),
+      boosters: Joi.array().items(Joi.string()).optional()
+    })
   }),
   userWatchRewards
-);
+)
 
 router.get(
-  "/boosterDetails/:telegramId",
+  '/boosterDetails/:telegramId',
   celebrate({
     [Segments.PARAMS]: Joi.object().keys({
-      telegramId: Joi.string().required(),
-    }),
+      telegramId: Joi.string().required()
+    })
   }),
   boosterDetails
-);
+)
 
 router.post(
-  "/purchaseBooster",
+  '/purchaseBooster',
   celebrate({
     [Segments.BODY]: Joi.object().keys({
       telegramId: Joi.string().required(),
       boosterPoints: Joi.string().required(),
       booster: Joi.string().required(),
-      boosterCount: Joi.number().required(),
-    }),
+      boosterCount: Joi.number().required()
+    })
   }),
   purchaseBooster
-);
+)
 
 router.post(
-  "/stakingRewards",
+  '/stakingRewards',
   celebrate({
     [Segments.BODY]: Joi.object().keys({
-      stakingId: Joi.string().required(),
-    }),
+      stakingId: Joi.string().required()
+    })
   }),
   stakingRewards
-);
+)
 
 router.get(
-  "/popularUser/:telegramId",
+  '/popularUser/:telegramId',
   celebrate({
     [Segments.PARAMS]: Joi.object().keys({
-      telegramId: Joi.string().required(),
-    }),
+      telegramId: Joi.string().required()
+    })
   }),
   popularUser
-);
+)
 
 router.get(
-  "/yourReferrals/:telegramId",
+  '/yourReferrals/:telegramId',
   celebrate({
     [Segments.PARAMS]: Joi.object().keys({
-      telegramId: Joi.string().required(),
-    }),
+      telegramId: Joi.string().required()
+    })
   }),
   yourReferrals
-);
+)
 
-router.use(errors());
+router.use(errors())
 
-module.exports = router;
+module.exports = router
