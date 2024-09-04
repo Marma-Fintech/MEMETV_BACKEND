@@ -127,8 +127,17 @@ const login = async (req, res, next) => {
             message: "Login failed: Cannot log in to a previous date.",
           });
         }
-       
+
+        // If the user tries to log in on a date different from the last recorded login date
+        const lastLoginDateString = lastLoginDate.toISOString().split("T")[0];
+        console.log(lastLoginDateString);
+        if (currentDateString !== lastLoginDateString) {
+          return res.status(400).json({
+            message: "Login failed: Don't change the date.",
+          });
+        }
       }
+
     }
 
     const currentPhase = calculatePhase(currentDate, startDate);
