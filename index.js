@@ -7,47 +7,66 @@ const helmet = require('helmet')
 const cors = require('cors')
 const cookieParser = require('cookie-parser')
 const TelegramBot = require('node-telegram-bot-api')
-const logger = require('./src/helpers/logger') // Import the custom logger
+const logger = require('./src/helpers/logger')
 require('dotenv').config()
 
 if (cluster.isMaster) {
-  const token = process.env.TELEGRAM_TOKEN
-  const bot = new TelegramBot(token, { polling: true })
-
-  bot.onText(/\/start(?:\s+(\w+))?/, (msg, match) => {
-    const chatId = msg.chat.id
-    const referredId = match[1]
-    logger.info(`Received /start command with referredId: ${referredId}`)
-    bot.sendMessage(chatId, 'Welcome! Open the web app to see your details:', {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: 'Open WebApp',
-              web_app: {
-                url: `https://hilarious-biscuit-35df15.netlify.app/?start=${referredId}`
-              }
-            }
-          ]
-        ]
-      }
-    })
-  })
-
   const numCPUs = os.cpus().length
   logger.info(`Master ${process.pid} is running`)
 
-  // Fork workers.
+  // Fork workers for handling HTTP requests, not the bot
   for (let i = 0; i < numCPUs; i++) {
     cluster.fork()
   }
 
   cluster.on('exit', (worker, code, signal) => {
     logger.warn(`Worker ${worker.process.pid} died`)
+    cluster.fork() // Fork a new worker when one dies
   })
 } else {
   const app = express()
 
+  // Initialize the bot only in the first worker
+  if (process.env.BOT_INIT_WORKER_ID == cluster.worker.id) {
+    const token = process.env.TELEGRAM_TOKEN
+    const url = process.env.APP_URL
+
+    const botInstance = new TelegramBot(token)
+    
+    // Set up webhook
+    botInstance.setWebHook(`${url}/bot${token}`)
+
+    // Handle the /start command
+    botInstance.onText(/\/start(?:\s+(\w+))?/, (msg, match) => {
+      console.log("hi");
+      const chatId = msg.chat.id
+      const referredId = match[1]
+      logger.info(`Received /start command with referredId: ${referredId}`)
+
+      botInstance.sendMessage(chatId, 'Welcome! Open the web app to see your details:', {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: 'Open WebApp',
+                web_app: {
+                  url: `${url}/?start=${referredId}`
+                }
+              }
+            ]
+          ]
+        }
+      })
+    })
+
+    // Express route for handling webhook updates from Telegram
+    app.post(`/bot${process.env.TELEGRAM_TOKEN}`, (req, res) => {
+      botInstance.processUpdate(req.body)
+      res.sendStatus(200)
+    })
+  }
+
+  // MongoDB Connection
   mongoose
     .connect(process.env.DBURL, {
       maxPoolSize: 10, // Set maxPoolSize instead of poolSize
