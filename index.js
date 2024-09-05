@@ -8,6 +8,7 @@ const cors = require('cors')
 const cookieParser = require('cookie-parser')
 const TelegramBot = require('node-telegram-bot-api')
 const logger = require('./src/helpers/logger') // Import the custom logger
+const { log } = require('console')
 require('dotenv').config()
 
 if (cluster.isMaster) {
@@ -51,6 +52,7 @@ if (cluster.isMaster) {
   const bot = new TelegramBot(token)
 
   bot.onText(/\/start(?:\s+(\w+))?/, (msg, match) => {
+    console.log("===========", msg)
     const chatId = msg.chat.id
     const referredId = match[1]
     logger.info(`Received /start command with referredId: ${referredId}`)
