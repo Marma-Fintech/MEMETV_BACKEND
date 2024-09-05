@@ -8,12 +8,34 @@ const cors = require('cors')
 const cookieParser = require('cookie-parser')
 const TelegramBot = require('node-telegram-bot-api')
 const logger = require('./src/helpers/logger') // Import the custom logger
-const { log } = require('console')
 require('dotenv').config()
 
 if (cluster.isMaster) {
-  const numCPUs = os.cpus().length
+  const token = process.env.TELEGRAM_TOKEN
+  const bot = new TelegramBot(token, {polling: true})
 
+  bot.onText(/\/start(?:\s+(\w+))?/, (msg, match) => {
+    console.log('===========', msg)
+    const chatId = msg.chat.id
+    const referredId = match[1]
+    logger.info(`Received /start command with referredId: ${referredId}`)
+    bot.sendMessage(chatId, 'Welcome! Open the web app to see your details:', {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: 'Open WebApp',
+              web_app: {
+                url: `https://hilarious-biscuit-35df15.netlify.app/?start=${referredId}`
+              }
+            }
+          ]
+        ]
+      }
+    })
+  })
+
+  const numCPUs = os.cpus().length
   logger.info(`Master ${process.pid} is running`)
 
   // Fork workers.
@@ -47,30 +69,6 @@ if (cluster.isMaster) {
   app.use(cookieParser())
   app.use(helmet())
   app.use(morgan('combined'))
-
-  const token = process.env.TELEGRAM_TOKEN
-  const bot = new TelegramBot(token)
-
-  bot.onText(/\/start(?:\s+(\w+))?/, (msg, match) => {
-    console.log("===========", msg)
-    const chatId = msg.chat.id
-    const referredId = match[1]
-    logger.info(`Received /start command with referredId: ${referredId}`)
-    bot.sendMessage(chatId, 'Welcome! Open the web app to see your details:', {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: 'Open WebApp',
-              web_app: {
-                url: `https://hilarious-biscuit-35df15.netlify.app/?start=${referredId} `
-              }
-            }
-          ]
-        ]
-      }
-    })
-  })
 
   const router = require('./src/routes/allRoutes')
   app.use(router)
