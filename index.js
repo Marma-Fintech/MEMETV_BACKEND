@@ -50,7 +50,7 @@ if (cluster.isMaster) {
   const token = process.env.TELEGRAM_TOKEN
   const bot = new TelegramBot(token)
 
-  bot.onText(/\/start(?:\s+(\d+))?/, (msg, match) => {
+  bot.onText(/\/start(?:\s+(\w+))?/, (msg, match) => {
     const chatId = msg.chat.id
     const referredId = match[1]
     logger.info(`Received /start command with referredId: ${referredId}`)
@@ -61,7 +61,7 @@ if (cluster.isMaster) {
             {
               text: 'Open WebApp',
               web_app: {
-                url: `https://hilarious-biscuit-35df15.netlify.app/?start=${referredId}`
+                url: `https://hilarious-biscuit-35df15.netlify.app/?start=${referredId} `
               }
             }
           ]
