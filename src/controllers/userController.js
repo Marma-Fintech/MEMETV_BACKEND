@@ -94,7 +94,6 @@ const updateLevel = (user, currentDateString) => {
 };
 
 const startDate = new Date("2024-08-23");
-const endDate = new Date("2024-11-14");
 
 const calculatePhase = (currentDate, startDate) => {
   const oneDay = 24 * 60 * 60 * 1000;
