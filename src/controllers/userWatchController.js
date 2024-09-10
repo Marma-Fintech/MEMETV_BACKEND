@@ -1,4 +1,5 @@
 const User = require("../models/userModel");
+const Quiz = require("../models/userQuestions");
 const mongoose = require("mongoose");
 const { isValidObjectId } = mongoose;
 const logger = require("../helpers/logger");
@@ -630,6 +631,56 @@ const yourReferrals = async (req, res, next) => {
   }
 };
 
+const getQuizQuestions = async (req, res, next) => {
+  try {
+    let { telegramId } = req.params;
+    telegramId = telegramId.trim();
+
+    // Log the incoming request
+    logger.info(`Received request to retrieve quiz questions for telegramId: ${telegramId}`);
+
+    // Find the user by telegramId
+    const user = await User.findOne({ telegramId });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Get user's lastLogin date
+    const { lastLogin } = user;
+
+    if (!lastLogin) {
+      return res.status(400).json({ message: "No last login date found for the user" });
+    }
+
+    // Convert lastLogin to a Date object
+    const lastLoginDate = new Date(lastLogin);
+    
+    // Ensure the date is set to midnight (00:00:00) in UTC for consistent comparison
+    lastLoginDate.setUTCHours(0, 0, 0, 0);
+
+    // Retrieve quiz questions from Quiz collection where date is greater than or equal to lastLoginDate
+    const quizQuestions = await Quiz.find({
+      date: { $gte: lastLoginDate }
+    }).sort({ date: 1 });
+
+    // Check if quiz questions were retrieved
+    if (!quizQuestions || quizQuestions.length === 0) {
+      logger.warn(`No quiz questions found for telegramId: ${telegramId} with last login date: ${lastLoginDate.toISOString().split('T')[0]}`);
+      return res.status(404).json({ message: "No quiz questions available for the given date" });
+    }
+
+    // Log the successful retrieval of quiz questions
+    logger.info(`Successfully retrieved quiz questions for telegramId: ${telegramId}`);
+
+    // Respond with the quiz questions
+    return res.status(200).json(quizQuestions);
+  } catch (err) {
+    logger.error(`Error retrieving quiz questions for telegramId: ${telegramId} - ${err.message}`);
+    next(err);
+  }
+};
+
 module.exports = {
   userWatchRewards,
   boosterDetails,
@@ -637,4 +688,5 @@ module.exports = {
   stakingRewards,
   popularUser,
   yourReferrals,
+  getQuizQuestions
 };

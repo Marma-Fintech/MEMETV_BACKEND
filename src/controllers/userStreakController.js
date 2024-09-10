@@ -50,6 +50,35 @@ const checkStartDay = async (user)=>{
   return user.streak.startDay;
 }
 
+//function to set current day in a week
+const setCurrentDay = async (user)=>{
+  console.log("Inisde set current day");
+  //will calculate day difference between curent date and distribution end
+  const res = Math.abs(await calculateDayDifference(distributionEndDate))+1;
+  if(res%7==0){
+    user.streak.currentDay = 1;
+  }
+  else if(res%7==6){
+    user.streak.currentDay = 2;
+  }
+  else if(res%7==5){
+    user.streak.currentDay = 3;
+  }
+  else if(res%7==4){
+    user.streak.currentDay = 4;
+  }
+  else if(res%7==3){
+    user.streak.currentDay = 5;
+  }
+  else if(res%7==2){
+    user.streak.currentDay = 6;
+  }
+  else if(res%7==1){
+    user.streak.currentDay = 7;
+  }
+  return user.streak.currentDay;
+}
+
 const updateClaimedDayArray = (user,firstLogin)=>{
   if(firstLogin){
     const startDay = user.streak.startDay;
@@ -67,14 +96,15 @@ const updateClaimedDayArray = (user,firstLogin)=>{
 const calculateLoginStreak = async (user, lastLoginDate, differenceInDays) => {
   const currentDate = new Date();
   const currentDay = currentDate.getUTCDate();
-  const lastLoginDay = lastLoginDate.getUTCDate();
-
+  const lastLoginDay = lastLoginDate.getUTCDate(); 
+  
   if (lastLoginDay != currentDay) {
     return false;
   }
   if ((await calculateDayDifference(user.streak.loginStreak.loginStreakDate)) >= 1 ||
     user.streak.loginStreak.loginStreakCount == 0
   ) {
+    await setCurrentDay(user);
     if (
       user.streak.loginStreak.loginStreakCount === 7 ||
       (differenceInDays % 7) + 1 === 7

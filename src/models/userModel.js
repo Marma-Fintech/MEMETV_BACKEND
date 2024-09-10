@@ -221,6 +221,10 @@ const userSchema = mongoose.Schema(
       startDay: {
         type: Number,
         default: 0
+      },
+      currentDay: {
+        type: Number,
+        default: 0
       }
     },
     yourReferenceIds: [
