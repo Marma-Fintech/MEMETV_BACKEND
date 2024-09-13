@@ -51,8 +51,22 @@ const userSchema = mongoose.Schema(
       default: 0
     },
     taskRewards: {
-      type: Number,
-      default: 0
+      taskPoints: {
+        type: Number,
+        default: 0
+      },
+     twitter: {
+      type: Boolean,
+      default: false
+     },
+     telegram: {
+      type: Boolean,
+      default: false
+     },
+    youtube: {
+      type: Boolean,
+      default: false
+    }
     },
     streakRewards: {
       type: Number,

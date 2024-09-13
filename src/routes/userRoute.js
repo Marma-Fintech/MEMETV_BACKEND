@@ -49,7 +49,8 @@ router.post(
   celebrate({
     [Segments.BODY]: Joi.object().keys({
       telegramId: Joi.string().required(),
-      taskPoints: Joi.string().required()
+      taskPoints: Joi.string().required(),
+      channel: Joi.string().required(),
     })
   }),
   userTaskRewards

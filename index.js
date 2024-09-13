@@ -35,7 +35,7 @@ if (cluster.isMaster) {
   });
 
 const numCPUs = os.cpus().length;
-logger.info(`Master ${process.pid} is running`);
+logger.info(`🏖️ Master ${process.pid} is running 🏖️ `);
   // Fork workers.
   for (let i = 0; i < numCPUs; i++) {
     cluster.fork();
@@ -52,7 +52,7 @@ logger.info(`Master ${process.pid} is running`);
       serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
     })
     .then(() => {
-      logger.info("********* Successfully Connected to MongoDB **********");
+      logger.info("*********🛡️ 🔍  Successfully Connected to MongoDB 🛡️ 🔍 **********");
     })
     .catch((err) => {
       logger.error("MongoDB Connection Failure", err);
@@ -67,6 +67,10 @@ logger.info(`Master ${process.pid} is running`);
   const router = require("./src/routes/allRoutes");
   app.use(router);
 
+  app.get('/', (req, res) => {
+    res.send(' ***🔥🔥 TheMemeTv Backend Server is Running 🔥🔥*** ');
+  });
+
   const rateLimit = require("express-rate-limit");
   const limiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute
@@ -75,6 +79,6 @@ logger.info(`Master ${process.pid} is running`);
   app.use(limiter);
   const port = process.env.PORT || 9090;
   app.listen(port, () => {
-    logger.info(`Worker ${process.pid} is listening on port ${port}`);
+    logger.info(`🏖️ 🔥  Worker ${process.pid} is listening on port ${port} 🏖️ 🔥 `);
   });
 }

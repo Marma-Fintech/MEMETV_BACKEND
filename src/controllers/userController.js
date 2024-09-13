@@ -490,14 +490,11 @@ const userGameRewards = async (req, res, next) => {
 };
 
 const userTaskRewards = async (req, res, next) => {
-  let telegramId; // Initialize telegramId here
-
   try {
-    const { telegramId: receivedTelegramId, taskPoints } = req.body;
-    telegramId = receivedTelegramId; // Assign the value from req.body
+    const { telegramId, taskPoints, channel } = req.body; // Directly destructuring req.body
 
     logger.info(
-      `Received request to add game rewards for user with telegramId: ${telegramId}`
+      `Received request to add task rewards for user with telegramId: ${telegramId}`
     );
 
     // Find the user by telegramId
@@ -542,15 +539,33 @@ const userTaskRewards = async (req, res, next) => {
       }
     }
 
+    // Check if the specific channel is already true (rewards already claimed)
+    if (channel && user.taskRewards.hasOwnProperty(channel)) {
+      if (user.taskRewards[channel]) {
+        // If the channel is already true, rewards should not be added again
+        logger.warn(
+          `Rewards for ${channel} have already been claimed by user with telegramId: ${telegramId}`
+        );
+        return res.status(400).json({
+          message: `Rewards for ${channel} have already been claimed.`,
+        });
+      }
+    } else {
+      logger.warn(`Invalid channel: ${channel}`);
+      return res.status(400).json({ message: "Invalid channel provided." });
+    }
+
     // Add taskPoints to totalRewards and taskRewards
     if (pointsToAdd > 0) {
       user.totalRewards += pointsToAdd;
 
-      // Update taskRewards
-      user.taskRewards += pointsToAdd;
+      // Update taskPoints within taskRewards
+      user.taskRewards.taskPoints += pointsToAdd;
 
+      // Set the specific channel to true
+      user.taskRewards[channel] = true;
       logger.info(
-        `Added ${pointsToAdd} task points to user with telegramId: ${telegramId}`
+        `Updated ${channel} to true and added ${pointsToAdd} task points for user with telegramId: ${telegramId}`
       );
     }
 
@@ -588,7 +603,7 @@ const userTaskRewards = async (req, res, next) => {
     await user.save();
 
     logger.info(
-      `Successfully added boosters and taskPoints for user with telegramId: ${telegramId}`
+      `Successfully added taskPoints and updated channel for user with telegramId: ${telegramId}`
     );
 
     return res
@@ -596,11 +611,12 @@ const userTaskRewards = async (req, res, next) => {
       .json({ message: "TaskPoints added successfully", user });
   } catch (err) {
     logger.error(
-      `Error processing game rewards for user with telegramId: ${telegramId} - ${err.message}`
+      `Error processing task rewards for user with telegramId: ${req.body.telegramId} - ${err.message}`
     );
     next(err);
   }
 };
+
 
 const purchaseGameCards = async (req, res, next) => {
   try {
