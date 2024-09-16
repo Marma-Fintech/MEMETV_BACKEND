@@ -52,8 +52,7 @@ const checkStartDay = async (user)=>{
 
 //function to set current day in a week
 const setCurrentDay = async (user)=>{
-  console.log("Inisde set current day");
-  //will calculate day difference between curent date and distribution end
+  //will calculate day difference between current date and distribution end
   const res = Math.abs(await calculateDayDifference(distributionEndDate))+1;
   if(res%7==0){
     user.streak.currentDay = 1;
@@ -116,6 +115,41 @@ const calculateLoginStreak = async (user, lastLoginDate, differenceInDays) => {
           user.streak.loginStreak.loginStreakReward[i];
         user.streak.loginStreak.loginStreakReward[i] = 0;
       }
+      //watch streak reward moving to unclaimed watch streak rewards
+      for (
+        i = 0;
+        i < user.streak.watchStreak.watchStreakReward.length;
+        i++
+      ) {
+        user.streak.watchStreak.unClaimedWatchStreakReward +=
+          user.streak.watchStreak.watchStreakReward[i];
+        user.streak.watchStreak.watchStreakReward[i] = 0;
+      }
+      //Refer streak reward moving to unclaimed refer streak rewards
+      for (
+        i = 0;
+        i < user.streak.referStreak.referStreakReward.length;
+        i++
+      ) {
+        user.streak.referStreak.unClaimedReferStreakReward +=
+          user.streak.referStreak.referStreakReward[i];
+        user.streak.referStreak.referStreakReward[i] = 0;
+      }
+      //Task streak reward moving to unclaimed task streak rewards
+      for (i = 0; i < user.streak.taskStreak.taskStreakReward.length; i++) {
+        user.streak.taskStreak.unClaimedTaskStreakReward +=
+          user.streak.taskStreak.taskStreakReward[i];
+        user.streak.taskStreak.taskStreakReward[i]=0;
+      }
+      //Multi streak reward moving to unclaimed multi streak rewards
+      for (i = 0; i < user.streak.multiStreak.multiStreakReward.length; i++) {
+        user.streak.multiStreak.unClaimedMultiStreakReward +=
+          user.streak.multiStreak.multiStreakReward[i];
+        user.streak.multiStreak.multiStreakReward[i] = 0;
+      }
+
+
+      
       // Update all elements in the claimedLoginDays array to false
       user.streak.claimedLoginDays = [false, false, false, false, false, false, false];
       user.streak.claimedWatchDays = [false, false, false, false, false, false, false];
@@ -197,7 +231,6 @@ const calculateWatchStreak = async (
   // check a user has logged in today
   if (todaysLogin) {
     //user watch seconds should be greater than 3 minutes for watch streak
-    if (userWatchSeconds >= 180) {
       const currentDate = new Date();
       const currentDay = currentDate.getUTCDate();
       const lastWatchStreakDate =
@@ -208,9 +241,9 @@ const calculateWatchStreak = async (
         user.streak.watchStreak.watchStreakCount == 0
       ) {
         if (
-          user.streak.watchStreak.watchStreakCount === 7 ||
+          (user.streak.watchStreak.watchStreakCount === 7 ||
           (differenceInDays % 7) + 1 === 7
-        ) {
+        )&&userWatchSeconds >= 180) {
           user.streak.watchStreak.watchStreakCount = 1;
           user.streak.watchStreak.watchStreakDate = new Date();
           for (
@@ -226,7 +259,7 @@ const calculateWatchStreak = async (
           user.streak.claimedWatchDays = [false, false, false, false, false, false, false];
           unClaimedStreakRewardsClaim(user);
         } 
-        else if((await calculateDayDifference(user.streak.watchStreak.watchStreakDate)) > 1 )
+        else if((await calculateDayDifference(user.streak.watchStreak.watchStreakDate)) > 1 && userWatchSeconds >= 180)
         {
           const watchDayDifference = await calculateDayDifference(user.streak.watchStreak.watchStreakDate);
           for(i=0;i<watchDayDifference;i++){
@@ -258,7 +291,7 @@ const calculateWatchStreak = async (
             user.streak.watchStreak.watchStreakReward[i] = 0;
           }
         }
-        else {
+        else if(userWatchSeconds >= 180){
           user.streak.watchStreak.watchStreakCount++;
           user.streak.watchStreak.watchStreakDate = new Date();
         }
@@ -276,9 +309,6 @@ const calculateWatchStreak = async (
         // same day login and no WATCH STREAK reward will be claimed
         return true;
       }
-    } else {
-      return false;
-    }
   } else {
     return false;
   }
@@ -607,7 +637,7 @@ const calculateMultiStreak = async (
           user.streak.multiStreak.multiStreakDate = new Date();
         }
         for(i=0 ;i<user.streak.multiStreak.multiStreakCount;i++){
-          user.boosters.push("5X");
+          user.boosters.push("5x");
         }
         const rewardAmount =
           multiStreakReward[user.streak.multiStreak.multiStreakCount-1];
@@ -635,7 +665,7 @@ const calculateMultiStreak = async (
         return true;
       }
       else{
-        console.log("Already in a Multi Streak");
+        // console.log("Already in a Multi Streak");
         return true;
       }
     }
