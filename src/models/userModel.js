@@ -9,6 +9,11 @@ const userSchema = mongoose.Schema(
     telegramId: {
       type: String
     },
+    userWalletAddress: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     refId: {
       type: String
     },

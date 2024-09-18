@@ -7,7 +7,8 @@ const {
   userGameRewards,
   purchaseGameCards,
   weekRewards,
-  userTaskRewards
+  userTaskRewards,
+  addWalletAddress,
 } = require('../controllers/userController')
 
 router.post(
@@ -50,7 +51,7 @@ router.post(
     [Segments.BODY]: Joi.object().keys({
       telegramId: Joi.string().required(),
       taskPoints: Joi.string().required(),
-      channel: Joi.string().required(),
+      channel: Joi.string().required()
     })
   }),
   userTaskRewards
@@ -75,6 +76,19 @@ router.get(
     })
   }),
   weekRewards
+)
+
+router.post(
+  '/addWalletAddress/:telegramId',
+  celebrate({
+    [Segments.PARAMS]: Joi.object().keys({
+      telegramId: Joi.string().required()
+    }),
+    [Segments.BODY]: Joi.object().keys({
+      userWalletAddress: Joi.string().required()
+    })
+  }),
+  addWalletAddress
 )
 
 router.use(errors())

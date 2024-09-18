@@ -812,6 +812,41 @@ const weekRewards = async (req, res, next) => {
   }
 };
 
+const addWalletAddress = async (req, res, next) => {
+  const { telegramId } = req.params;
+  const { userWalletAddress } = req.body;
+
+  try {
+    // Find the user by telegramId
+    const user = await User.findOne({ telegramId });
+
+    if (!user) {
+      // Log and return if the user is not found
+      logger.error(`User with telegramId: ${telegramId} not found`);
+      return res.status(404).json({
+        message: 'User not found'
+      });
+    }
+
+    // Update the user's wallet address (ensure correct field name)
+    user.userWalletAddress = userWalletAddress; // Make sure this matches the field name in your schema
+    await user.save();
+
+    // Log success and respond
+    logger.info(`Wallet address updated for user: ${telegramId}`);
+    return res.status(200).json({
+      message: 'Wallet address updated successfully'
+    });
+
+  } catch (err) {
+    logger.error(
+      `Error updating wallet address for telegramId: ${telegramId} - ${err.message}`
+    );
+    next(err);
+  }
+};
+
+
 module.exports = {
   login,
   userDetails,
@@ -819,4 +854,5 @@ module.exports = {
   purchaseGameCards,
   weekRewards,
   userTaskRewards,
+  addWalletAddress,
 };
