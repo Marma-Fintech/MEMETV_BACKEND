@@ -113,33 +113,6 @@ const login = async (req, res, next) => {
     const currentDate = new Date();
     const currentDateString = currentDate.toISOString().split("T")[0]; // e.g., "2024-08-27"
 
-    // If user exists, check if the current date is earlier than the last login date
-    // if (user) {
-    //   const lastLoginDate = new Date(user.lastLogin);
-
-    //   // If user exists, check if the current date is earlier than the last login date
-    //   if (user) {
-    //     const lastLoginDate = new Date(user.lastLogin);
-
-    //     // If the current date is earlier than the last login date, return an error
-    //     if (currentDate < lastLoginDate) {
-    //       return res.status(400).json({
-    //         message: "Login failed: Cannot log in to a previous date.",
-    //       });
-    //     }
-
-    //     // If the user tries to log in on a date different from the last recorded login date
-    //     const lastLoginDateString = lastLoginDate.toISOString().split("T")[0];
-    //     console.log(lastLoginDateString);
-    //     if (currentDateString !== lastLoginDateString) {
-    //       return res.status(400).json({
-    //         message: "Login failed: Don't change the date.",
-    //       });
-    //     }
-    //   }
-
-    // }
-
     const currentPhase = calculatePhase(currentDate, startDate);
 
     // Check if the current date is after the user end date
@@ -164,35 +137,7 @@ const login = async (req, res, next) => {
     }
 
     let referringUser = null;
-    // if (referredById) {
-    //   referringUser = await User.findOne({ refId: referredById });
-
-    //   if (!referringUser) {
-    //     referredById = ""; // Set to null if referring user not found
-    //     logger.error(`Referring user not found for refId: ${referredById}`);
-    //   } else {
-    //     // Check if the referred user's login date is earlier than the last login date of the referring user
-    //     if (currentDate < new Date(referringUser.lastLogin)) {
-    //       return res.status(400).json({
-    //         message: "Login failed: Cannot log in to a previous date.",
-    //       });
-    //     }
-
-    //     // Check if the last record in the referring user's dailyRewards array is from a later date
-    //     const lastDailyReward =
-    //       referringUser.dailyRewards[referringUser.dailyRewards.length - 1];
-    //     if (lastDailyReward) {
-    //       const lastDailyRewardDate = new Date(lastDailyReward.createdAt);
-
-    //       if (currentDate < lastDailyRewardDate) {
-    //         return res.status(400).json({
-    //           message: "Login failed: Cannot log in to a previous date.",
-    //         });
-    //       }
-    //     }
-    //   }
-    // }
-
+    
     if (!user) {
       // Create a new user
       user = new User({
@@ -356,16 +301,21 @@ const userDetails = async (req, res, next) => {
       `User details retrieved successfully for telegramId: ${telegramId}`
     );
 
-    // Return the user details in the response
-    return res.status(200).json(userDetail);
-  } catch (error) {
-    // Handle any errors that occur
-    logger.error(
-      `Error retrieving user details for telegramId: ${telegramId} - ${error.message}`
-    );
-    return res
-      .status(500)
-      .json({ message: "An error occurred", error: error.message });
+    // Calculate the current phase
+    const currentDate = new Date();
+    const currentPhase = calculatePhase(currentDate, startDate);
+
+    // Add the currentPhase to the user details
+    const response = {
+      ...userDetail._doc, // Spread the user detail fields
+      currentPhase: currentPhase, // Add the calculated phase
+    };
+
+    // Return the user details with the current phase in the response
+    return res.status(200).json(response);
+  } catch (err) {
+    logger.error(`Error during login process: ${err.message}`);
+    next(err);
   }
 };
 
