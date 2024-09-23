@@ -5,7 +5,7 @@ const { isValidObjectId } = mongoose;
 const logger = require("../helpers/logger");
 
 const levelUpBonuses = [
-  // 500, // Level 1 bonus, you reach 1000 its level2 you got level2 bonus points
+  // 500, Level 1 bonus, you reach 1000 its level2 you got level2 bonus points
   1000, // Level 2 to Level 3
   10000, // Level 3 to Level 4
   50000, // Level 4 to Level 5
