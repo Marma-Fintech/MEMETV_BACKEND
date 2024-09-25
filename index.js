@@ -25,7 +25,7 @@ if (cluster.isMaster) {
             {
               text: "Open WebApp",
               web_app: {
-                url: `https://hilarious-biscuit-35df15.netlify.app/?start=${referredId}`,
+                url: `https://app.thememe.tv/?start=${referredId}`,
               },
             },
           ],
