@@ -77,7 +77,7 @@ logger.info(`🏖️ Master ${process.pid} is running 🏖️ `);
     max: 1000, // Limit each IP to 1000 requests per `window` (here, per minute)
   });
   app.use(limiter);
-  const port = process.env.PORT || 9090;
+  const port = process.env.PORT || 8888;
   app.listen(port, () => {
     logger.info(`🏖️ 🔥  Worker ${process.pid} is listening on port ${port} 🏖️ 🔥 `);
   });
