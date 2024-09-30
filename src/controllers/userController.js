@@ -145,7 +145,7 @@ const login = async (req, res, next) => {
         telegramId,
         refId,
         referredById,
-        boosters: ['levelUp', 'tap'],
+        boosters: ['levelUp'],
         totalRewards: 500,
         referRewards: 0,
         lastLogin: currentDate,
@@ -238,7 +238,7 @@ const login = async (req, res, next) => {
           }
         }
 
-        referringUser.boosters.push('2x')
+        referringUser.boosters.push('2x', '2x', '2x', '2x', '2x')
         updateLevel(referringUser, currentDate.toISOString().split('T')[0])
         await referringUser.save()
       }
@@ -254,7 +254,7 @@ const login = async (req, res, next) => {
         currentMonth > lastLoginMonth ||
         currentDay > lastLoginDay
       ) {
-        user.boosters.push('levelUp', 'tap')
+        user.boosters.push('levelUp')
       }
       user.lastLogin = currentDate
       await user.save()
