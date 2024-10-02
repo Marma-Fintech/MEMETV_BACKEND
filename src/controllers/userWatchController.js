@@ -328,12 +328,9 @@ const purchaseBooster = async (req, res, next) => {
       });
     }
 
-    // Check if the user has enough boosterPoints available in both totalRewards and watchRewards
+    // Check if the user has enough boosterPoints available in totalRewards
     const totalBoosterPoints = boosterPoints;
-    if (
-      user.totalRewards < totalBoosterPoints ||
-      user.watchRewards < totalBoosterPoints
-    ) {
+    if (user.totalRewards < totalBoosterPoints) {
       logger.warn(
         `Insufficient points for booster purchase for telegramId: ${telegramId}`
       );
@@ -342,14 +339,33 @@ const purchaseBooster = async (req, res, next) => {
         .json({ message: "Not enough purchase points available" });
     }
 
-    // Deduct the total boosterPoints from totalRewards and watchRewards
+    // Deduct the total boosterPoints from totalRewards
     user.totalRewards -= totalBoosterPoints;
-    user.watchRewards -= totalBoosterPoints;
 
     // Log the deduction of points
     logger.info(
       `Deducted ${totalBoosterPoints} points for telegramId: ${telegramId}`
     );
+
+    // Subtract the totalBoosterPoints from spendingRewards
+    user.spendingRewards = (user.spendingRewards || 0) - totalBoosterPoints;
+
+    // Find today's entry in dailyRewards
+    const today = new Date().toISOString().split('T')[0]; // Get the current date in YYYY-MM-DD format
+    const dailyRewardEntry = user.dailyRewards.find(entry =>
+      entry.createdAt.toISOString().split('T')[0] === today
+    );
+
+    if (dailyRewardEntry) {
+      // Deduct points from the totalRewards field in dailyRewards for today
+      if (dailyRewardEntry.totalRewards > totalBoosterPoints) {
+        dailyRewardEntry.totalRewards -= totalBoosterPoints;
+      } else {
+        dailyRewardEntry.totalRewards = 0; // Set to 0 if not enough
+      }
+    } else {
+      logger.warn(`No daily reward entry found for today: ${today}`);
+    }
 
     // Push the booster multiple times based on boosterCount into the boosters array
     for (let i = 0; i < boosterCount; i++) {
@@ -371,6 +387,9 @@ const purchaseBooster = async (req, res, next) => {
     next(err);
   }
 };
+
+
+
 
 const stakingRewards = async (req, res, next) => {
   try {
