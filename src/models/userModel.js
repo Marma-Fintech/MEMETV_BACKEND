@@ -51,6 +51,10 @@ const userSchema = mongoose.Schema(
         default: 0
       }
     },
+    spendingRewards: {
+      type: Number,
+      default: 0
+    },
     stakingRewards: {
       type: Number,
       default: 0

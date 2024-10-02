@@ -562,69 +562,110 @@ const userTaskRewards = async (req, res, next) => {
 
 const purchaseGameCards = async (req, res, next) => {
   try {
-    const { telegramId, gamePoints } = req.body
+    const { telegramId, gamePoints } = req.body;
 
     // Get the current date and time
-    const now = new Date()
+    const now = new Date();
+    const today = now.toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
 
     logger.info(
       `Received request to purchase game cards for user with telegramId: ${telegramId}`
-    )
+    );
 
     // Find the user by telegramId
-    const user = await User.findOne({ telegramId })
+    const user = await User.findOne({ telegramId });
 
     if (!user) {
-      logger.warn(`User not found for telegramId: ${telegramId}`)
-      return res.status(404).json({ message: 'User not found' })
+      logger.warn(`User not found for telegramId: ${telegramId}`);
+      return res.status(404).json({ message: 'User not found' });
     }
 
     // Check if the current date is past the userEndDate
-    if (now > userEndDate) {
+    if (now > user.userEndDate) {
       logger.warn(
         `User with telegramId: ${telegramId} has reached the end date. No purchases can be made.`
-      )
+      );
       return res.status(403).json({
         message: 'User has reached the end date. No purchases can be made.',
         user
-      })
+      });
     }
 
     // Ensure gamePoints is a number
-    const pointsToDeduct = Number(gamePoints) || 0
+    const pointsToDeduct = Number(gamePoints) || 0;
 
-    // Check if the user has enough points
-    if (
-      user.totalRewards >= pointsToDeduct &&
-      user.gameRewards.gamePoints >= pointsToDeduct
-    ) {
-      // Deduct points from totalRewards and gameRewards
-      user.totalRewards -= pointsToDeduct
-      user.gameRewards.gamePoints -= pointsToDeduct
+    // Check if the user has enough points in totalRewards
+    if (user.totalRewards >= pointsToDeduct) {
+      // Deduct points from totalRewards
+      user.totalRewards -= pointsToDeduct;
+
+      // Subtract points from spendingRewards
+      user.spendingRewards = (user.spendingRewards || 0) - pointsToDeduct;
+
+      // Find today's entry in the dailyRewards array
+      const todayRewardIndex = user.dailyRewards.findIndex(
+        (reward) =>
+          new Date(reward.createdAt).toISOString().split('T')[0] === today
+      );
+
+      let remainingPointsToDeduct = pointsToDeduct;
+
+      if (todayRewardIndex >= 0) {
+        // Get the total rewards for today
+        const todayRewards = user.dailyRewards[todayRewardIndex].totalRewards;
+
+        if (todayRewards >= remainingPointsToDeduct) {
+          // Deduct from today's totalRewards
+          user.dailyRewards[todayRewardIndex].totalRewards -= remainingPointsToDeduct;
+          remainingPointsToDeduct = 0; // All points deducted
+        } else {
+          // Set today's totalRewards to 0 and deduct the remaining from overall
+          remainingPointsToDeduct -= todayRewards;
+          user.dailyRewards[todayRewardIndex].totalRewards = 0;
+        }
+
+        logger.info(
+          `Successfully deducted points from today's totalRewards in dailyRewards for user with telegramId: ${telegramId}`
+        );
+      } else {
+        // If no entry for today, create one with totalRewards as 0 since all points go to spending
+        user.dailyRewards.push({
+          userId: user._id,
+          telegramId: user.telegramId,
+          totalRewards: 0, // Points already deducted from overall rewards
+          userStaking: false,
+          createdAt: now
+        });
+
+        logger.info(
+          `No dailyRewards entry for today, created new entry with 0 rewards for user with telegramId: ${telegramId}`
+        );
+      }
 
       // Save the updated user document
-      await user.save()
-
-      logger.info(
-        `Successfully deducted ${pointsToDeduct} points for user with telegramId: ${telegramId}`
-      )
+      await user.save();
 
       return res
         .status(200)
-        .json({ message: 'Game cards purchased successfully', user })
+        .json({ message: 'Game cards purchased successfully', user });
     } else {
       logger.warn(
         `User with telegramId: ${telegramId} does not have enough points. Purchase failed.`
-      )
-      return res.status(400).json({ message: 'Not enough points available' })
+      );
+      return res.status(400).json({ message: 'Not enough points available' });
     }
   } catch (err) {
     logger.error(
       `Error processing purchase for user with telegramId: ${telegramId} - ${err.message}`
-    )
-    next(err)
+    );
+    next(err);
   }
-}
+};
+
+
+
+
+
 
 const weekRewards = async (req, res, next) => {
   try {
