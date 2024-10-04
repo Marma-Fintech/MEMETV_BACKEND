@@ -64,18 +64,18 @@ const userSchema = mongoose.Schema(
         type: Number,
         default: 0
       },
-     twitter: {
-      type: Boolean,
-      default: false
-     },
-     telegram: {
-      type: Boolean,
-      default: false
-     },
-    youtube: {
-      type: Boolean,
-      default: false
-    }
+      twitter: {
+        type: Boolean,
+        default: false
+      },
+      telegram: {
+        type: Boolean,
+        default: false
+      },
+      youtube: {
+        type: Boolean,
+        default: false
+      }
     },
     streakRewards: {
       type: Number,
@@ -274,8 +274,12 @@ const userSchema = mongoose.Schema(
           default: Date.now
         }
       }
-    ]
+    ],
+    voteDetails: {
+      voteStatus: { type: Boolean, default: false },
+      voteDate: { type: Date }
   },
+},
   {
     timestamps: true
   }
