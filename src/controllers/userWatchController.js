@@ -1,4 +1,5 @@
 const User = require("../models/userModel");
+const Vote = require("../models/userVoteModel");
 const Quiz = require("../models/userQuestions");
 const mongoose = require("mongoose");
 const { isValidObjectId } = mongoose;
