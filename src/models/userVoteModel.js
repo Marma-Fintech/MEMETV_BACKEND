@@ -2,30 +2,29 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const voteSchema = new Schema({
-  telegramId: {
-    type: String,
-    ref: 'User', // Reference to the User model
-    required: true,
-  },
   votes: [{
     voteChoice: {
-      type: String, // 'A' or 'B', depending on the poll options
+      type: String,
       required: true,
-      unique: true, // Ensure this is unique per telegramId
     },
     voteChoiceId: {
-        type: String, 
+      type: String,
+      required: true,
+    },
+    voters: [{ // Changed to 'voters' for clarity
+      telegramId: {
+        type: String, // Individual telegramId of the voter
         required: true,
-        unique: true,
-    },
-    voteCount: {
-      type: Number, // Tracks the number of votes for this choice by the user
-      default: 0,
-    },
-    createdAt: {
-      type: Date,
-      default: Date.now,
-    }
+      },
+      voteCount: {
+        type: Number, // Tracks the number of votes for this choice by this user
+        default: 1, // Default to 1 since they are voting
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now,
+      },
+    }],
   }],
   createdAt: {
     type: Date,
@@ -36,5 +35,4 @@ const voteSchema = new Schema({
 const Vote = mongoose.model('Vote', voteSchema);
 
 module.exports = Vote;
-
 
