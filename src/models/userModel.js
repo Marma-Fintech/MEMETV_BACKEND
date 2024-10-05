@@ -277,9 +277,21 @@ const userSchema = mongoose.Schema(
     ],
     voteDetails: {
       voteStatus: { type: Boolean, default: false },
-      voteDate: { type: Date }
+      voteDate: { type: Date },
+      votingTeamId: {
+        type: String,
+        default: ''
+      },
+      votesCount: {
+        type: Number,
+        default: 0
+      },
+      battleReward: {
+        type: Number,
+        default: 0
+      }
+    }
   },
-},
   {
     timestamps: true
   }

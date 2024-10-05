@@ -1,32 +1,27 @@
 const express = require('express')
 const router = express.Router()
 const { celebrate, Joi, errors, Segments } = require('celebrate')
-const {
-    userChoosePoll,
-    calculateVotes
-} = require('../controllers/userVoteController')
+const { getBattleByDate,userChooseTeam } = require('../controllers/userVoteController')
 
-router.post(
-  '/userChoosePoll',
+router.get(
+  '/getBattleByDate',
   celebrate({
-    [Segments.BODY]: Joi.object().keys({
-      voteChoice: Joi.string().required(),
-      voteChoiceId: Joi.string().required(),
-      telegramId: Joi.string().required(),
+    [Segments.QUERY]: Joi.object().keys({
+      date: Joi.string().isoDate().required()
     })
   }),
-  userChoosePoll
+  getBattleByDate
 )
 
-router.post('/calculateVotes',
-celebrate({
+router.post(
+  '/userChooseTeam',
+  celebrate({
     [Segments.BODY]: Joi.object().keys({
-      voteCount: Joi.number().required(),
-      voteChoiceId: Joi.string().required(),
+      teamId: Joi.string().required(),
       telegramId: Joi.string().required(),
     })
   }),
-  calculateVotes
+  userChooseTeam
 )
 
 router.use(errors())
