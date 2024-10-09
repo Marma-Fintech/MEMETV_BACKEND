@@ -6,13 +6,24 @@ const getBattleByDate = async (req, res) => {
   try {
     const { date } = req.query;
 
+    if (!date) {
+      return res.status(400).json({ message: 'Date query parameter is required' });
+    }
+
     // Log the incoming request
     logger.info(`Received request for battles on date: ${date}`);
 
-    // Convert the date to the start and end of the day
-    const startOfDay = new Date(date);
+    // Try to parse the date properly
+    const parsedDate = new Date(date);
+    if (isNaN(parsedDate.getTime())) {
+      logger.warn(`Invalid date format received: ${date}`);
+      return res.status(400).json({ message: 'Invalid date format' });
+    }
+
+    // Convert the parsed date to the start and end of the day in UTC
+    const startOfDay = new Date(parsedDate);
     startOfDay.setUTCHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
+    const endOfDay = new Date(parsedDate);
     endOfDay.setUTCHours(23, 59, 59, 999);
 
     // Query the database to get battles for the provided date
@@ -31,17 +42,17 @@ const getBattleByDate = async (req, res) => {
 
     // Log successful query
     logger.info(`Battles found for date: ${date}, sending response.`);
-    
-    // Process the user's poll choice here
-    // Add your custom logic for handling user poll choice
 
-    res.json(battles); // Send the found battles back
+    // Send the found battles back
+    res.json(battles);
   } catch (err) {
     // Log the error
     logger.error(`Error fetching battles for date: ${date} - ${err.message}`);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
+
+
 
 const userChooseTeam = async (req, res, next) => {
   const { teamId, telegramId } = req.body;

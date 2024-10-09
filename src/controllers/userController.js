@@ -143,7 +143,9 @@ const login = async (req, res, next) => {
         // Update voteStatus to false and voteDate to the current date
         user.voteDetails.voteStatus = false;
         user.voteDetails.voteDate = currentDate;
-        user.voteDetails.votingTeamId = ""
+        user.voteDetails.votingTeamId = "";
+        user.voteDetails.votesCount = 0;
+        user.voteDetails.battleReward = 0;
       }
     }
 
