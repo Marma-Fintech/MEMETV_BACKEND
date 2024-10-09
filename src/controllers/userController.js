@@ -103,36 +103,37 @@ const calculatePhase = (currentDate, startDate) => {
 }
 
 const login = async (req, res, next) => {
-  let { name, referredById, telegramId } = req.body;
+  let { name, referredById, telegramId } = req.body
+
   try {
-    name = name.trim();
-    telegramId = telegramId.trim();
-    const refId = generateRefId(); // Implement this function to generate a refId
-    let user = await User.findOne({ telegramId });
-    const currentDate = new Date();
-    const currentDay = currentDate.getUTCDate();
-    const currentMonth = currentDate.getUTCMonth();
-    const currentYear = currentDate.getUTCFullYear();
+    name = name.trim()
+    telegramId = telegramId.trim()
+    const refId = generateRefId() // Implement this function to generate a refId
+    let user = await User.findOne({ telegramId })
+    const currentDate = new Date()
+    const currentDay = currentDate.getUTCDate()
+    const currentMonth = currentDate.getUTCMonth()
+    const currentYear = currentDate.getUTCFullYear()
 
     if (currentDate > userEndDate) {
       if (!user) {
         return res.status(403).json({
-          message: 'No new users can be created after the end date',
-        });
+          message: 'No new users can be created after the end date'
+        })
       } else {
-        user.lastLogin = currentDate;
-        await user.save();
+        user.lastLogin = currentDate
+        await user.save()
         return res.status(201).json({
           message: 'User logged in successfully',
           user,
-          warning: 'No rewards can be calculated after the end date',
-        });
+          warning: 'No rewards can be calculated after the end date'
+        })
       }
     }
 
     // Logic for updating voteStatus and voteDate
     if (user && user.voteDetails) {
-      const lastVoteDate = new Date(user.voteDetails.voteDate);
+      const lastVoteDate = new Date(user.voteDetails.voteDate)
 
       // If more than 1 day has passed since last voteDate
       if (
@@ -141,20 +142,20 @@ const login = async (req, res, next) => {
         currentDay > lastVoteDate.getUTCDate()
       ) {
         // Update voteStatus to false and voteDate to the current date
-        user.voteDetails.voteStatus = false;
-        user.voteDetails.voteDate = currentDate;
-        user.voteDetails.votingTeamId = "";
-        user.voteDetails.votesCount = 0;
-        user.voteDetails.battleReward = 0;
+        user.voteDetails.voteStatus = false
+        user.voteDetails.voteDate = currentDate
+        user.voteDetails.votingTeamId = ''
+        user.voteDetails.votesCount = 0
+        user.voteDetails.battleReward = 0
       }
     }
 
-    let referringUser = null;
+    let referringUser = null
     if (referredById) {
-      referringUser = await User.findOne({ refId: referredById });
+      referringUser = await User.findOne({ refId: referredById })
       if (!referringUser) {
-        referredById = ''; // Set to null if referring user not found
-        console.error('Referring user not found');
+        referredById = '' // Set to null if referring user not found
+        console.error('Referring user not found')
       }
     }
 
@@ -173,45 +174,45 @@ const login = async (req, res, next) => {
         levelUpRewards: 500,
         voteDetails: {
           voteStatus: false,
-          voteDate: currentDate,
-        },
-      });
+          voteDate: currentDate
+        }
+      })
 
       user.dailyRewards.push({
         userId: user._id,
         telegramId: user.telegramId,
         totalRewards: 500,
-        createdAt: currentDate,
-      });
-      await user.save();
+        createdAt: currentDate
+      })
+      await user.save()
 
       // Handle referral logic for referringUser if applicable
       if (referringUser) {
-        referringUser.yourReferenceIds.push({ userId: user._id });
+        referringUser.yourReferenceIds.push({ userId: user._id })
 
-        referringUser.totalRewards += 10000;
-        referringUser.referRewards += 10000;
+        referringUser.totalRewards += 10000
+        referringUser.referRewards += 10000
 
-        const today = new Date();
-        today.setUTCHours(0, 0, 0, 0);
-        let dailyReward = referringUser.dailyRewards.find((dr) => {
-          const rewardDate = new Date(dr.createdAt);
-          rewardDate.setUTCHours(0, 0, 0, 0);
-          return rewardDate.getTime() === today.getTime();
-        });
+        const today = new Date()
+        today.setUTCHours(0, 0, 0, 0)
+        let dailyReward = referringUser.dailyRewards.find(dr => {
+          const rewardDate = new Date(dr.createdAt)
+          rewardDate.setUTCHours(0, 0, 0, 0)
+          return rewardDate.getTime() === today.getTime()
+        })
 
         if (dailyReward) {
-          dailyReward.totalRewards += 10000;
+          dailyReward.totalRewards += 10000
         } else {
           referringUser.dailyRewards.push({
             userId: referringUser._id,
             telegramId: referringUser.telegramId,
             totalRewards: 10000,
-            createdAt: currentDate,
-          });
+            createdAt: currentDate
+          })
         }
 
-        const numberOfReferrals = referringUser.yourReferenceIds.length;
+        const numberOfReferrals = referringUser.yourReferenceIds.length
         const milestones = [
           { referrals: 3, reward: 20000 },
           { referrals: 5, reward: 33333 },
@@ -233,68 +234,66 @@ const login = async (req, res, next) => {
           { referrals: 85, reward: 566667 },
           { referrals: 90, reward: 600000 },
           { referrals: 95, reward: 633333 },
-          { referrals: 100, reward: 666667 },
-        ];
+          { referrals: 100, reward: 666667 }
+        ]
 
-        let milestoneReward = 0;
+        let milestoneReward = 0
 
         for (const milestone of milestones) {
           if (numberOfReferrals === milestone.referrals) {
-            milestoneReward += milestone.reward;
+            milestoneReward += milestone.reward
           }
         }
 
         if (milestoneReward > 0) {
-          referringUser.totalRewards += milestoneReward;
-          referringUser.referRewards += milestoneReward;
+          referringUser.totalRewards += milestoneReward
+          referringUser.referRewards += milestoneReward
           if (dailyReward) {
-            dailyReward.totalRewards += milestoneReward;
+            dailyReward.totalRewards += milestoneReward
           } else {
             referringUser.dailyRewards.push({
               userId: referringUser._id,
               telegramId: referringUser.telegramId,
               totalRewards: milestoneReward,
-              createdAt: currentDate,
-            });
+              createdAt: currentDate
+            })
           }
         }
 
-        referringUser.boosters.push('2x', '2x', '2x', '2x', '2x');
-        updateLevel(referringUser, currentDate.toISOString().split('T')[0]);
-        await referringUser.save();
+        referringUser.boosters.push('2x', '2x', '2x', '2x', '2x')
+        updateLevel(referringUser, currentDate.toISOString().split('T')[0])
+        await referringUser.save()
       }
     } else {
       // Existing user login logic
-      const lastLoginDate = new Date(user.lastLogin);
-      const lastLoginDay = lastLoginDate.getUTCDate();
-      const lastLoginMonth = lastLoginDate.getUTCMonth();
-      const lastLoginYear = lastLoginDate.getUTCFullYear();
+      const lastLoginDate = new Date(user.lastLogin)
+      const lastLoginDay = lastLoginDate.getUTCDate()
+      const lastLoginMonth = lastLoginDate.getUTCMonth()
+      const lastLoginYear = lastLoginDate.getUTCFullYear()
 
       if (
         currentYear > lastLoginYear ||
         currentMonth > lastLoginMonth ||
         currentDay > lastLoginDay
       ) {
-        user.boosters.push('levelUp');
+        user.boosters.push('levelUp')
       }
-      user.lastLogin = currentDate;
-      await user.save();
+      user.lastLogin = currentDate
+      await user.save()
     }
 
-    updateLevel(user, currentDate.toISOString().split('T')[0]);
+    updateLevel(user, currentDate.toISOString().split('T')[0])
     res.status(201).json({
       message: `User logged in successfully`,
-      user,
-    });
+      user
+    })
   } catch (err) {
     logger.error(
       `Error processing task rewards for user with telegramId: ${req.body.telegramId} - ${err.message}`
-    );
-    next(err);
+    )
+    next(err)
   }
-};
-
-
+}
 
 const userDetails = async (req, res, next) => {
   try {
@@ -588,71 +587,72 @@ const userTaskRewards = async (req, res, next) => {
 
 const purchaseGameCards = async (req, res, next) => {
   try {
-    const { telegramId, gamePoints } = req.body;
+    const { telegramId, gamePoints } = req.body
 
     // Get the current date and time
-    const now = new Date();
-    const today = now.toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+    const now = new Date()
+    const today = now.toISOString().split('T')[0] // Get today's date in YYYY-MM-DD format
 
     logger.info(
       `Received request to purchase game cards for user with telegramId: ${telegramId}`
-    );
+    )
 
     // Find the user by telegramId
-    const user = await User.findOne({ telegramId });
+    const user = await User.findOne({ telegramId })
 
     if (!user) {
-      logger.warn(`User not found for telegramId: ${telegramId}`);
-      return res.status(404).json({ message: 'User not found' });
+      logger.warn(`User not found for telegramId: ${telegramId}`)
+      return res.status(404).json({ message: 'User not found' })
     }
 
     // Check if the current date is past the userEndDate
     if (now > user.userEndDate) {
       logger.warn(
         `User with telegramId: ${telegramId} has reached the end date. No purchases can be made.`
-      );
+      )
       return res.status(403).json({
         message: 'User has reached the end date. No purchases can be made.',
         user
-      });
+      })
     }
 
     // Ensure gamePoints is a number
-    const pointsToDeduct = Number(gamePoints) || 0;
+    const pointsToDeduct = Number(gamePoints) || 0
 
     // Check if the user has enough points in totalRewards
     if (user.totalRewards >= pointsToDeduct) {
       // Deduct points from totalRewards
-      user.totalRewards -= pointsToDeduct;
+      user.totalRewards -= pointsToDeduct
 
       // Subtract points from spendingRewards
-      user.spendingRewards = (user.spendingRewards || 0) - pointsToDeduct;
+      user.spendingRewards = (user.spendingRewards || 0) - pointsToDeduct
 
       // Find today's entry in the dailyRewards array
       const todayRewardIndex = user.dailyRewards.findIndex(
-        (reward) =>
+        reward =>
           new Date(reward.createdAt).toISOString().split('T')[0] === today
-      );
+      )
 
-      let remainingPointsToDeduct = pointsToDeduct;
+      let remainingPointsToDeduct = pointsToDeduct
 
       if (todayRewardIndex >= 0) {
         // Get the total rewards for today
-        const todayRewards = user.dailyRewards[todayRewardIndex].totalRewards;
+        const todayRewards = user.dailyRewards[todayRewardIndex].totalRewards
 
         if (todayRewards >= remainingPointsToDeduct) {
           // Deduct from today's totalRewards
-          user.dailyRewards[todayRewardIndex].totalRewards -= remainingPointsToDeduct;
-          remainingPointsToDeduct = 0; // All points deducted
+          user.dailyRewards[todayRewardIndex].totalRewards -=
+            remainingPointsToDeduct
+          remainingPointsToDeduct = 0 // All points deducted
         } else {
           // Set today's totalRewards to 0 and deduct the remaining from overall
-          remainingPointsToDeduct -= todayRewards;
-          user.dailyRewards[todayRewardIndex].totalRewards = 0;
+          remainingPointsToDeduct -= todayRewards
+          user.dailyRewards[todayRewardIndex].totalRewards = 0
         }
 
         logger.info(
           `Successfully deducted points from today's totalRewards in dailyRewards for user with telegramId: ${telegramId}`
-        );
+        )
       } else {
         // If no entry for today, create one with totalRewards as 0 since all points go to spending
         user.dailyRewards.push({
@@ -661,37 +661,32 @@ const purchaseGameCards = async (req, res, next) => {
           totalRewards: 0, // Points already deducted from overall rewards
           userStaking: false,
           createdAt: now
-        });
+        })
 
         logger.info(
           `No dailyRewards entry for today, created new entry with 0 rewards for user with telegramId: ${telegramId}`
-        );
+        )
       }
 
       // Save the updated user document
-      await user.save();
+      await user.save()
 
       return res
         .status(200)
-        .json({ message: 'Game cards purchased successfully', user });
+        .json({ message: 'Game cards purchased successfully', user })
     } else {
       logger.warn(
         `User with telegramId: ${telegramId} does not have enough points. Purchase failed.`
-      );
-      return res.status(400).json({ message: 'Not enough points available' });
+      )
+      return res.status(400).json({ message: 'Not enough points available' })
     }
   } catch (err) {
     logger.error(
       `Error processing purchase for user with telegramId: ${telegramId} - ${err.message}`
-    );
-    next(err);
+    )
+    next(err)
   }
-};
-
-
-
-
-
+}
 
 const weekRewards = async (req, res, next) => {
   try {
