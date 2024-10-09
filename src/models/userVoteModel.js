@@ -17,7 +17,18 @@ const voteSchema = new Schema({
       rank: {
         type: String,
         default: ''
-      }
+      },
+      votersIds: [
+        {
+          telegramId: {
+            type: String
+          },
+          createdAt: {
+            type: Date,
+            default: Date.now
+          }
+        }
+      ],
     }
   ],
   winner: {
