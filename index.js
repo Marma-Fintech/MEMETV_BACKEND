@@ -12,7 +12,7 @@ require('dotenv').config()
 
 if (cluster.isMaster) {
   const token = process.env.TELEGRAM_TOKEN
-  const bot = new TelegramBot(token)
+  const bot = new TelegramBot(token, { polling: true })
   bot.onText(/\/start(?:\s+(\w+))?/, (msg, match) => {
     const chatId = msg.chat.id
     const referredId = match[1]
@@ -79,7 +79,6 @@ if (cluster.isMaster) {
     max: 1000 // Limit each IP to 1000 requests per `window` (here, per minute)
   })
 
-  
   app.use(limiter)
   const port = process.env.PORT || 8888
   app.listen(port, () => {
