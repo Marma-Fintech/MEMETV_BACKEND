@@ -1,7 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const { celebrate, Joi, errors, Segments } = require('celebrate')
-const { getBattleByDate,userChooseTeam } = require('../controllers/userVoteController')
+const { getBattleByDate,userChooseTeam,getTeamVotesByDate } = require('../controllers/userVoteController')
 
 router.get(
   '/getBattleByDate',
@@ -12,6 +12,8 @@ router.get(
   }),
   getBattleByDate
 )
+
+router.get('/getTeamVotesByDate', getTeamVotesByDate);
 
 router.post(
   '/userChooseTeam',
