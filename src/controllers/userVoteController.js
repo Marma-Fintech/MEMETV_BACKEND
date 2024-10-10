@@ -58,13 +58,37 @@ const userChooseTeam = async (req, res, next) => {
   const { teamId, telegramId } = req.body;
 
   try {
-    // Check if the teamId exists in the Vote model
-    const vote = await Vote.findOne({ 'teams.teamId': teamId });
 
-    // If the teamId does not exist, return an error
+    // Get today's date (in UTC) to find the appropriate battle
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);  // Set to the start of the day in UTC
+        
+    
+    // Find the vote document for today
+    const vote = await Vote.findOne({ 
+      date: { $gte: today, $lte: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1) } 
+    });
+
+    // If no battle is found for today, return an error
     if (!vote) {
-      return res.status(404).json({ message: 'Team ID not found' });
+      return res.status(404).json({ message: 'No battles available for today' });
     }
+
+    const team = vote.teams.find(team => team.teamId === teamId);
+
+    if (!team) {
+      return res.status(404).json({ message: 'Team not found for today\'s battle' });
+    }
+
+    // Check if the user has already voted today
+    const alreadyVoted = team.votersIds.some(voter => voter.telegramId === telegramId);
+
+    if (alreadyVoted) {
+      return res.status(400).json({ message: 'You have already voted today' });
+    }
+
+    // Add the user to the votersIds array for the selected team
+    team.votersIds.push({ telegramId, createdAt: new Date() });
 
     // Find the user by telegramId
     const user = await User.findOne({ telegramId });
@@ -74,21 +98,27 @@ const userChooseTeam = async (req, res, next) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Update voteDetails
-    user.voteDetails.votingTeamId = teamId; // Set the votingTeamId
-    user.voteDetails.voteStatus = true;      // Set the voteStatus to true
+    user.voteDetails = {
+      votingTeamId: teamId,
+      voteStatus: true,
+      voteDate: new Date(),
+    };
 
     // Save the updated user
     await user.save();
+
+    // Save the updated vote document
+    await vote.save();  // Make sure this does not overwrite required fields
 
     // Log the successful update
     logger.info(`User with telegramId ${telegramId} successfully chose team ${teamId}`);
 
     // Respond with success message
-    return res.status(200).json({ message: 'Team successfully chosen', user });
+    return res.status(200).json({ message: 'Team successfully chosen', vote });
   } catch (err) {
+    next(err)
     logger.error(`Error choosing team for telegramId ${telegramId}: ${err.message}`);
-    return res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({ message: 'Internal server error', error: err.message });
   }
 };
 

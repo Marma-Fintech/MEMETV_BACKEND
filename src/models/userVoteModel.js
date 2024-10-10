@@ -33,7 +33,7 @@ const voteSchema = new Schema({
   ],
   winner: {
     type: String,
-    required: true
+    default: ''
   },
   date: {
     type: Date,
