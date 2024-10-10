@@ -1,14 +1,14 @@
-const mongoose = require('mongoose');
-const Schema = mongoose.Schema;
+const mongoose = require('mongoose')
+const Schema = mongoose.Schema
 
 const voteSchema = new Schema({
   teams: [
     {
       teamName: {
-        type: String,
+        type: String
       },
       teamId: {
-        type: String,
+        type: String
       },
       teamVotes: {
         type: String,
@@ -28,10 +28,14 @@ const voteSchema = new Schema({
             default: Date.now
           }
         }
-      ],
+      ]
     }
   ],
   winner: {
+    type: String,
+    default: ''
+  },
+  lose: {
     type: String,
     default: ''
   },
@@ -40,8 +44,8 @@ const voteSchema = new Schema({
     required: true,
     default: Date.now
   }
-});
+})
 
-const Vote = mongoose.model('Vote', voteSchema);
+const Vote = mongoose.model('Vote', voteSchema)
 
-module.exports = Vote;
+module.exports = Vote
