@@ -2,6 +2,7 @@ const Vote = require('../models/userVoteModel');
 const User = require('../models/userModel');
 const logger = require('../helpers/logger'); 
 
+
 const getBattleByDate = async (req, res) => {
   try {
     const { date } = req.query;
@@ -30,8 +31,8 @@ const getBattleByDate = async (req, res) => {
     const battles = await Vote.find({
       date: {
         $gte: startOfDay,
-        $lte: endOfDay
-      }
+        $lte: endOfDay,
+      },
     });
 
     // If no battles found
@@ -40,17 +41,82 @@ const getBattleByDate = async (req, res) => {
       return res.status(404).json({ message: 'No battles found for the given date' });
     }
 
+    // Get unique team IDs
+    const teamIds = [...new Set(battles.flatMap(battle => [battle.winner, battle.lose]))];
+
+    // Count wins and losses for each teamId
+    const winCounts = {};
+    const lossCounts = {};
+
+    // Count wins and losses for each teamId in one query
+    const results = await Vote.aggregate([
+      {
+        $match: {
+          winner: { $in: teamIds },
+        },
+      },
+      {
+        $group: {
+          _id: "$winner",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Store win counts
+    results.forEach(result => {
+      winCounts[result._id] = result.count;
+    });
+
+    // Repeat for losses
+    const lossResults = await Vote.aggregate([
+      {
+        $match: {
+          lose: { $in: teamIds },
+        },
+      },
+      {
+        $group: {
+          _id: "$lose",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Store loss counts
+    lossResults.forEach(result => {
+      lossCounts[result._id] = result.count;
+    });
+
+    // Prepare the response array with win and loss counts
+    const response = battles.map((battle) => ({
+      _id: battle._id,
+      teams: battle.teams.map((team) => ({
+        _id: team._id,
+        teamName: team.teamName,
+        teamId: team.teamId,
+        rank: team.rank,
+        wins: winCounts[team.teamId] || 0,
+        losses: lossCounts[team.teamId] || 0,
+      })),
+      date: battle.date,
+    }));
+
     // Log successful query
     logger.info(`Battles found for date: ${date}, sending response.`);
 
     // Send the found battles back
-    res.json(battles);
+    res.json(response);
   } catch (err) {
     // Log the error
     logger.error(`Error fetching battles for date: ${date} - ${err.message}`);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
+
+
+
+
 
 
 
