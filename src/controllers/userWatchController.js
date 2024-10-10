@@ -1,4 +1,5 @@
 const User = require('../models/userModel')
+const Vote = require('../models/userVoteModel')
 const Quiz = require('../models/userQuestions')
 const mongoose = require('mongoose')
 const { isValidObjectId } = mongoose
@@ -34,8 +35,6 @@ const userEndDate = new Date('2024-12-01')
 
 const userWatchRewards = async (req, res, next) => {
   try {
-    let battleWinningRewards = 1000
-
     const {
       telegramId,
       userWatchSeconds,
@@ -47,113 +46,109 @@ const userWatchRewards = async (req, res, next) => {
       `Received request to process watch rewards for telegramId: ${telegramId}`
     )
 
-    const now = new Date()
-    const currentDateString = now.toISOString().split('T')[0] // "YYYY-MM-DD"
+    const now = new Date();
+    const currentDateString = now.toISOString().split('T')[0]; // "YYYY-MM-DD"
 
     // Find the user by telegramId
-    const user = await User.findOne({ telegramId })
+    const user = await User.findOne({ telegramId });
 
     if (!user) {
-      logger.warn(`User not found for telegramId: ${telegramId}`)
-      return res.status(404).json({ message: 'User not found' })
+      logger.warn(`User not found for telegramId: ${telegramId}`);
+      return res.status(404).json({ message: 'User not found' });
     }
 
-    logger.info(`User found for telegramId: ${telegramId}`)
+    logger.info(`User found for telegramId: ${telegramId}`);
 
     // Check if the current date is past the userEndDate
-    if (now > userEndDate) {
-      logger.warn(`User has reached the end date for telegramId: ${telegramId}`)
+    if (now > user.userEndDate) {
+      logger.warn(`User has reached the end date for telegramId: ${telegramId}`);
       return res.status(403).json({
         message:
           'User has reached the end date. No rewards or boosters can be processed.',
         user
-      })
+      });
     }
 
-    logger.info(`Calculating rewards for telegramId: ${telegramId}`)
-
-    let remainingSeconds = userWatchSeconds
-    let newRewards = 0
-    let currentTotalRewards = user.totalRewards
-    let previousLevel = user.level
+    // Watch rewards and level-up logic (unchanged from your current logic)
+    let remainingSeconds = userWatchSeconds;
+    let newRewards = 0;
+    let currentTotalRewards = user.totalRewards;
+    let previousLevel = user.level;
 
     // Calculate rewards based on user level
     if (user.level < 10) {
       while (remainingSeconds > 0) {
-        let rewardPerSecond
+        let rewardPerSecond;
         for (let i = thresholds.length - 1; i >= 0; i--) {
           if (currentTotalRewards >= thresholds[i].limit) {
-            rewardPerSecond = thresholds[i].rewardPerSecond
-            break
+            rewardPerSecond = thresholds[i].rewardPerSecond;
+            break;
           }
         }
 
-        let nextThreshold = thresholds.find(t => t.limit > currentTotalRewards)
+        let nextThreshold = thresholds.find(t => t.limit > currentTotalRewards);
         let secondsAtThisRate = nextThreshold
-          ? Math.min(
-              remainingSeconds,
-              nextThreshold.limit - currentTotalRewards
-            )
-          : remainingSeconds
+          ? Math.min(remainingSeconds, nextThreshold.limit - currentTotalRewards)
+          : remainingSeconds;
 
-        newRewards += secondsAtThisRate * rewardPerSecond
-        currentTotalRewards += secondsAtThisRate
-        remainingSeconds -= secondsAtThisRate
+        newRewards += secondsAtThisRate * rewardPerSecond;
+        currentTotalRewards += secondsAtThisRate;
+        remainingSeconds -= secondsAtThisRate;
       }
     } else {
       const level10RewardPerSecond = thresholds.find(
         t => t.level === 10
-      ).rewardPerSecond
-      newRewards = remainingSeconds * level10RewardPerSecond
+      ).rewardPerSecond;
+      newRewards = remainingSeconds * level10RewardPerSecond;
     }
 
     logger.info(
       `Rewards calculated for telegramId: ${telegramId}, newRewards: ${newRewards}`
-    )
+    );
 
-    const parsedBoosterPoints = parseFloat(boosterPoints)
-    user.totalRewards += newRewards + parsedBoosterPoints
+    const parsedBoosterPoints = parseFloat(boosterPoints);
+    user.totalRewards += newRewards + parsedBoosterPoints;
 
-    let newLevel = 1
+    let newLevel = 1;
     for (let i = thresholds.length - 1; i >= 0; i--) {
       if (user.totalRewards >= thresholds[i].limit) {
-        newLevel = thresholds[i].level
-        break
+        newLevel = thresholds[i].level;
+        break;
       }
     }
 
-    let levelUpBonus = 0
+    let levelUpBonus = 0;
 
     if (newLevel > previousLevel) {
       for (let level = previousLevel; level < newLevel; level++) {
-        let bonusIndex = level - 1
+        let bonusIndex = level - 1;
         if (bonusIndex >= 0 && bonusIndex < levelUpBonuses.length) {
-          levelUpBonus += levelUpBonuses[bonusIndex]
+          levelUpBonus += levelUpBonuses[bonusIndex];
         }
       }
     }
 
     logger.info(
       `Level-up bonus calculated for telegramId: ${telegramId}, levelUpBonus: ${levelUpBonus}`
-    )
+    );
 
-    user.level = newLevel
-    user.totalRewards += levelUpBonus
+    user.level = newLevel;
+    user.totalRewards += levelUpBonus;
 
-    let dailyRewardAmount = newRewards + levelUpBonus + parsedBoosterPoints
+    let dailyRewardAmount = newRewards + levelUpBonus + parsedBoosterPoints;
 
-    let lastDailyReward = user.dailyRewards[user.dailyRewards.length - 1]
+    let lastDailyReward = user.dailyRewards[user.dailyRewards.length - 1];
     if (lastDailyReward) {
       const lastRewardDateString = new Date(lastDailyReward.createdAt)
         .toISOString()
-        .split('T')[0]
+        .split('T')[0];
       if (currentDateString < lastRewardDateString) {
         logger.warn(
           `Attempt to add rewards on a previous date. Current date: ${currentDateString}, Last daily rewards date: ${lastRewardDateString}`
-        )
+        );
         return res.status(400).json({
           message: 'Cannot add rewards for a previous date.'
-        })
+        });
       }
     }
 
@@ -161,54 +156,90 @@ const userWatchRewards = async (req, res, next) => {
       reward =>
         new Date(reward.createdAt).toISOString().split('T')[0] ===
         currentDateString
-    )
+    );
 
     if (dailyReward) {
-      dailyReward.totalRewards += dailyRewardAmount
+      dailyReward.totalRewards += dailyRewardAmount;
     } else {
       user.dailyRewards.push({
         userId: user._id,
         telegramId: user.telegramId,
         totalRewards: dailyRewardAmount,
         createdAt: new Date()
-      })
+      });
     }
 
     logger.info(
       `Daily rewards updated for telegramId: ${telegramId}, amount: ${dailyRewardAmount}`
-    )
+    );
 
     // Update watchRewards and levelUpRewards
     user.watchRewards =
-      (user.watchRewards || 0) + newRewards + parsedBoosterPoints
-    user.levelUpRewards = (user.levelUpRewards || 0) + levelUpBonus
+      (user.watchRewards || 0) + newRewards + parsedBoosterPoints;
+    user.levelUpRewards = (user.levelUpRewards || 0) + levelUpBonus;
 
     // Replicate today's watchRewards into voteDetails.votesCount
-    const todayWatchRewards = newRewards + parsedBoosterPoints
+    const todayWatchRewards = newRewards + parsedBoosterPoints;
 
     // Add today's watchRewards to votesCount
-    user.voteDetails.votesCount += todayWatchRewards
+    user.voteDetails.votesCount += todayWatchRewards;
 
     logger.info(
       `voteDetails.votesCount updated by today's watchRewards for telegramId: ${telegramId}, votesCount: ${user.voteDetails.votesCount}`
-    )
+    );
+
+    // **Find the voting record in Vote Model**
+    const voteDate = new Date(user.voteDetails.voteDate);
+    const votingTeamId = user.voteDetails.votingTeamId;
+
+    const startOfDay = new Date(voteDate);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(voteDate);
+    endOfDay.setUTCHours(23, 59, 59, 999);
+    
+    // Query to find the vote record with the correct date and teamId
+    const vote = await Vote.findOne({
+      date: {
+        $gte: startOfDay,
+        $lt: endOfDay
+      },
+      'teams.teamId': votingTeamId
+    });
+    
+    // console.log("vote", vote);
+    
+
+    if (vote) {
+      // Find the correct team and update teamVotes
+      const team = vote.teams.find(team => team.teamId === votingTeamId);
+      if (team) {
+        team.teamVotes = (parseFloat(team.teamVotes) || 0) + todayWatchRewards;
+        logger.info(
+          `teamVotes updated for teamId: ${votingTeamId} with additional votes: ${todayWatchRewards}`
+        );
+      }
+      await vote.save();
+    } else {
+      logger.warn(`No voting record found for date ${voteDate} and teamId ${votingTeamId}`);
+    }
 
     if (boosters && boosters.length > 0) {
       boosters.forEach(booster => {
-        const index = user.boosters.indexOf(booster)
+        const index = user.boosters.indexOf(booster);
         if (index > -1) {
-          user.boosters.splice(index, 1)
+          user.boosters.splice(index, 1);
         }
-      })
+      });
 
-      logger.info(`Boosters updated for telegramId: ${telegramId}`)
+      logger.info(`Boosters updated for telegramId: ${telegramId}`);
     }
 
-    await user.save()
+    await user.save();
 
     logger.info(
       `Rewards, level, and vote details updated successfully for telegramId: ${telegramId}`
-    )
+    );
 
     res.status(200).json({
       message: 'Rewards, level, and vote details updated successfully',
@@ -231,14 +262,15 @@ const userWatchRewards = async (req, res, next) => {
       voteDetails: user.voteDetails, // Include updated voteDetails in the response
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
-    })
+    });
   } catch (err) {
     logger.error(
       `Error processing rewards for telegramId: ${telegramId} - ${err.message}`
-    )
-    next(err)
+    );
+    next(err);
   }
-}
+};
+
 
 const boosterDetails = async (req, res, next) => {
   try {
