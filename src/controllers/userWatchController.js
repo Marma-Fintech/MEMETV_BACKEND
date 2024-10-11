@@ -218,6 +218,22 @@ const userWatchRewards = async (req, res, next) => {
         logger.info(
           `teamVotes updated for teamId: ${votingTeamId} with additional votes: ${todayWatchRewards}`
         )
+
+        // Update the 'yourVotes' field in votersIds array for the specific user
+        const voter = team.votersIds.find(
+          voter => voter.telegramId === telegramId
+        )
+        if (voter) {
+          voter.yourVotes =
+            (parseFloat(voter.yourVotes) || 0) + user.voteDetails.votesCount
+          logger.info(
+            `yourVotes updated for telegramId: ${telegramId} with votesCount: ${user.voteDetails.votesCount}`
+          )
+        } else {
+          logger.warn(
+            `No voter found with telegramId: ${telegramId} in teamId: ${votingTeamId}`
+          )
+        }
       }
       await vote.save()
     } else {

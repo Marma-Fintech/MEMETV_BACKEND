@@ -23,6 +23,9 @@ const voteSchema = new Schema({
           telegramId: {
             type: String
           },
+          yourVotes: {
+            type: String
+          },
           createdAt: {
             type: Date,
             default: Date.now
