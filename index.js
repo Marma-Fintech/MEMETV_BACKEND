@@ -12,7 +12,7 @@ require('dotenv').config()
 
 if (cluster.isMaster) {
   const token = process.env.TELEGRAM_TOKEN
-  const bot = new TelegramBot(token)
+  const bot = new TelegramBot(token, {polling: true})
   bot.onText(/\/start(?:\s+(\w+))?/, (msg, match) => {
     const chatId = msg.chat.id
     const referredId = match[1]
