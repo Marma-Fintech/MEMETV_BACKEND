@@ -10,12 +10,12 @@ const TelegramBot = require('node-telegram-bot-api')
 const logger = require('./src/helpers/logger') // Import the custom logger
 require('dotenv').config()
 const http = require('http') // Add http server
-const WebSocket = require("ws") // Add WebSocket
+const WebSocket = require('ws') // Add WebSocket
 const rateLimit = require('express-rate-limit')
 
 if (cluster.isMaster) {
   const token = process.env.TELEGRAM_TOKEN
-  const bot = new TelegramBot(token)
+  const bot = new TelegramBot(token, { polling: true })
   bot.onText(/\/start(?:\s+(\w+))?/, (msg, match) => {
     const chatId = msg.chat.id
     const referredId = match[1]
@@ -91,18 +91,18 @@ if (cluster.isMaster) {
 
   let activeUsers = 0
 
-  wsServer.on("connection", (ws) => {
+  wsServer.on('connection', ws => {
     activeUsers++
     broadcastActiveUsers()
 
-    ws.on("close", () => {
+    ws.on('close', () => {
       activeUsers--
       broadcastActiveUsers()
     })
   })
 
-  function broadcastActiveUsers() {
-    wsServer.clients.forEach((client) => {
+  function broadcastActiveUsers () {
+    wsServer.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify({ activeUsers }))
       }
@@ -120,4 +120,3 @@ if (cluster.isMaster) {
     )
   })
 }
-
