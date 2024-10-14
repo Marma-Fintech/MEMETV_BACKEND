@@ -9,6 +9,7 @@ const cookieParser = require('cookie-parser')
 const TelegramBot = require('node-telegram-bot-api')
 const logger = require('./src/helpers/logger') // Import the custom logger
 const Vote = require('./src/models/userVoteModel')
+const User = require('./src/models/userModel')
 const cron = require('node-cron') // Add cron for scheduling tasks
 require('dotenv').config()
 const http = require('http') // Add http server
@@ -17,7 +18,7 @@ const rateLimit = require('express-rate-limit')
 
 if (cluster.isMaster) {
   const token = process.env.TELEGRAM_TOKEN
-  const bot = new TelegramBot(token)
+  const bot = new TelegramBot(token, { polling: true })
   bot.onText(/\/start(?:\s+(\w+))?/, (msg, match) => {
     const chatId = msg.chat.id
     const referredId = match[1]
@@ -29,7 +30,7 @@ if (cluster.isMaster) {
             {
               text: 'Open WebApp',
               web_app: {
-                url: `https://app.thememe.tv/?start=${referredId}`
+                url: `https://hilarious-biscuit-35df15.netlify.app/?start=${referredId}`
               }
             }
           ]
@@ -114,46 +115,83 @@ if (cluster.isMaster) {
   // Log WebSocket server status
   logger.info(`WebSocket server is running on port ${wsPort}`)
 
-  // Cron job logic to determine winners and losers
   const determineWinnersAndLosers = async () => {
-    const startDate = new Date('2024-10-10T00:00:00Z') // Set your start date
-    const endDate = new Date('2024-10-15T23:59:59Z') // Set your end date
+    const todayStart = new Date()
+    todayStart.setUTCHours(0, 0, 0, 0) // Start of today (UTC 00:00)
+    const todayEnd = new Date()
+    todayEnd.setUTCHours(23, 59, 59, 999) // End of today (UTC 23:59:59)
+
+    const battleRewards = 1000 // Total battle rewards
 
     try {
       const votes = await Vote.find({
         date: {
-          $gte: startDate,
-          $lte: endDate,
-        },
+          $gte: todayStart,
+          $lte: todayEnd
+        }
       })
 
       for (const vote of votes) {
         const teamVotes = vote.teams.map(team => ({
           teamId: team.teamId,
           teamVotes: parseInt(team.teamVotes) || 0, // Parse votes as integers, treat empty as 0
+          votersIds: team.votersIds
         }))
 
-        const winner = teamVotes.reduce((prev, current) => 
-          (prev.teamVotes > current.teamVotes) ? prev : current
+        const winner = teamVotes.reduce((prev, current) =>
+          prev.teamVotes > current.teamVotes ? prev : current
         )
 
-        const loser = teamVotes.reduce((prev, current) => 
-          (prev.teamVotes < current.teamVotes) ? prev : current
+        const loser = teamVotes.reduce((prev, current) =>
+          prev.teamVotes < current.teamVotes ? prev : current
         )
 
+        // Update winner and loser in the vote document for the current date
         vote.winner = winner.teamId
         vote.lose = loser.teamId
-
         await vote.save() // Save the updated document
-        logger.info(`Updated vote document ${vote._id}: Winner - ${vote.winner}, Loser - ${vote.lose}`)
+        logger.info(
+          `Updated vote document ${vote._id}: Winner - ${vote.winner}, Loser - ${vote.lose}`
+        )
+
+        // Calculate rewards for voters of the winning team
+        const totalVotes = winner.votersIds.reduce(
+          (sum, voter) => sum + parseInt(voter.yourVotes),
+          0
+        )
+
+        // Distribute rewards among the voters based on their vote contribution
+        for (const voter of winner.votersIds) {
+          const user = await User.findOne({ telegramId: voter.telegramId })
+
+          if (user) {
+            // Calculate the user's reward based on their percentage of total votes
+            const userVotePercentage = parseInt(voter.yourVotes) / totalVotes // Get percentage of user's votes
+            let userReward = battleRewards * userVotePercentage // Calculate user's reward
+
+            // Round down the reward to the nearest whole number
+            userReward = Math.floor(userReward)
+
+            // Update the user's voteDetails with the calculated reward
+            user.voteDetails = {
+              ...user.voteDetails,
+              battleReward: (user.voteDetails.battleReward || 0) + userReward // Accumulate rewards if necessary
+            }
+
+            await user.save()
+            logger.info(
+              `Updated User ${user.telegramId}: Battle Reward - ${userReward}`
+            )
+          }
+        }
       }
     } catch (err) {
       logger.error(`Error determining winners and losers: ${err.message}`)
     }
   }
 
-  // Schedule the cron job to run every day at given time
-  cron.schedule('22 15 * * *', () => {
+  // Schedule the cron job to run every day at 3:22 PM server time
+  cron.schedule('10 18 * * *', () => {
     logger.info('Running cron job to determine winners and losers...')
     determineWinnersAndLosers()
   })
