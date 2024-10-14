@@ -8,6 +8,8 @@ const cors = require('cors')
 const cookieParser = require('cookie-parser')
 const TelegramBot = require('node-telegram-bot-api')
 const logger = require('./src/helpers/logger') // Import the custom logger
+const Vote = require('./src/models/userVoteModel')
+const cron = require('node-cron') // Add cron for scheduling tasks
 require('dotenv').config()
 const http = require('http') // Add http server
 const WebSocket = require('ws') // Add WebSocket
@@ -15,7 +17,7 @@ const rateLimit = require('express-rate-limit')
 
 if (cluster.isMaster) {
   const token = process.env.TELEGRAM_TOKEN
-  const bot = new TelegramBot(token, { polling: true })
+  const bot = new TelegramBot(token)
   bot.onText(/\/start(?:\s+(\w+))?/, (msg, match) => {
     const chatId = msg.chat.id
     const referredId = match[1]
@@ -111,6 +113,64 @@ if (cluster.isMaster) {
 
   // Log WebSocket server status
   logger.info(`WebSocket server is running on port ${wsPort}`)
+
+  // Cron job logic to determine winners and losers
+  const determineWinnersAndLosers = async () => {
+    const startDate = new Date('2024-10-10T00:00:00Z') // Set your start date
+    const endDate = new Date('2024-10-15T23:59:59Z') // Set your end date
+
+    try {
+      const votes = await Vote.find({
+        date: {
+          $gte: startDate,
+          $lte: endDate,
+        },
+      })
+
+      for (const vote of votes) {
+        const teamVotes = vote.teams.map(team => ({
+          teamId: team.teamId,
+          teamVotes: parseInt(team.teamVotes) || 0, // Parse votes as integers, treat empty as 0
+        }))
+
+        const winner = teamVotes.reduce((prev, current) => 
+          (prev.teamVotes > current.teamVotes) ? prev : current
+        )
+
+        const loser = teamVotes.reduce((prev, current) => 
+          (prev.teamVotes < current.teamVotes) ? prev : current
+        )
+
+        vote.winner = winner.teamId
+        vote.lose = loser.teamId
+
+        await vote.save() // Save the updated document
+        logger.info(`Updated vote document ${vote._id}: Winner - ${vote.winner}, Loser - ${vote.lose}`)
+      }
+    } catch (err) {
+      logger.error(`Error determining winners and losers: ${err.message}`)
+    }
+  }
+
+  // Schedule the cron job to run every day at given time
+  cron.schedule('22 15 * * *', () => {
+    logger.info('Running cron job to determine winners and losers...')
+    determineWinnersAndLosers()
+  })
+
+  // Stop the cron job after the end date
+  const stopCronJob = async () => {
+    const currentDate = new Date()
+    const endDate = new Date('2024-10-15T23:59:59Z')
+
+    if (currentDate > endDate) {
+      cron.stop()
+      logger.info('Cron job stopped as the end date has been reached.')
+    }
+  }
+
+  // Call stopCronJob to check if it should stop (can be run on server startup)
+  stopCronJob()
 
   // Listen on the specified port
   const port = process.env.PORT || 8888
