@@ -9,10 +9,13 @@ const cookieParser = require('cookie-parser')
 const TelegramBot = require('node-telegram-bot-api')
 const logger = require('./src/helpers/logger') // Import the custom logger
 require('dotenv').config()
+const http = require('http') // Add http server
+const WebSocket = require("ws") // Add WebSocket
+const rateLimit = require('express-rate-limit')
 
 if (cluster.isMaster) {
   const token = process.env.TELEGRAM_TOKEN
-  const bot = new TelegramBot(token, {polling: true})
+  const bot = new TelegramBot(token)
   bot.onText(/\/start(?:\s+(\w+))?/, (msg, match) => {
     const chatId = msg.chat.id
     const referredId = match[1]
@@ -34,7 +37,6 @@ if (cluster.isMaster) {
   })
 
   const numCPUs = os.cpus().length
-  // logger.info(`🏖️ Master ${process.pid} is running 🏖️ `);
 
   // Fork workers.
   for (let i = 0; i < numCPUs; i++) {
@@ -48,8 +50,8 @@ if (cluster.isMaster) {
 
   mongoose
     .connect(process.env.DBURL, {
-      maxPoolSize: 10, // Set maxPoolSize instead of poolSize
-      serverSelectionTimeoutMS: 5000 // Keep trying to send operations for 5 seconds
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000
     })
     .then(() => {
       logger.info(
@@ -66,6 +68,7 @@ if (cluster.isMaster) {
   app.use(cookieParser())
   app.use(helmet())
   app.use(morgan('combined'))
+
   const router = require('./src/routes/allRoutes')
   app.use(router)
 
@@ -73,17 +76,48 @@ if (cluster.isMaster) {
     res.send(' ***🔥🔥 TheMemeTv Backend Server is Running 🔥🔥*** ')
   })
 
-  const rateLimit = require('express-rate-limit')
   const limiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute
-    max: 1000 // Limit each IP to 1000 requests per `window` (here, per minute)
+    max: 1000 // Limit each IP to 1000 requests per `window`
+  })
+  app.use(limiter)
+
+  // Create HTTP server to handle both HTTP and WebSocket traffic
+  const server = http.createServer(app)
+
+  // WebSocket setup
+  const wsPort = process.env.WS_PORT || 3000
+  const wsServer = new WebSocket.Server({ server })
+
+  let activeUsers = 0
+
+  wsServer.on("connection", (ws) => {
+    activeUsers++
+    broadcastActiveUsers()
+
+    ws.on("close", () => {
+      activeUsers--
+      broadcastActiveUsers()
+    })
   })
 
-  app.use(limiter)
+  function broadcastActiveUsers() {
+    wsServer.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ activeUsers }))
+      }
+    })
+  }
+
+  // Log WebSocket server status
+  logger.info(`WebSocket server is running on port ${wsPort}`)
+
+  // Listen on the specified port
   const port = process.env.PORT || 8888
-  app.listen(port, () => {
+  server.listen(port, () => {
     logger.info(
       `🏖️ 🔥  Worker ${process.pid} is listening on port ${port} 🏖️ 🔥 `
     )
   })
 }
+
