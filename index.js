@@ -18,7 +18,7 @@ const rateLimit = require('express-rate-limit')
 
 if (cluster.isMaster) {
   const token = process.env.TELEGRAM_TOKEN
-  const bot = new TelegramBot(token, { polling: true })
+  const bot = new TelegramBot(token,{polling: true})
   bot.onText(/\/start(?:\s+(\w+))?/, (msg, match) => {
     const chatId = msg.chat.id
     const referredId = match[1]
@@ -116,83 +116,93 @@ if (cluster.isMaster) {
   logger.info(`WebSocket server is running on port ${wsPort}`)
 
   const determineWinnersAndLosers = async () => {
-    const todayStart = new Date()
-    todayStart.setUTCHours(0, 0, 0, 0) // Start of today (UTC 00:00)
-    const todayEnd = new Date()
-    todayEnd.setUTCHours(23, 59, 59, 999) // End of today (UTC 23:59:59)
-
     const battleRewards = 1000 // Total battle rewards
-
     try {
-      const votes = await Vote.find({
+      // Get today's date in UTC (start of the day)
+      const today = new Date()
+      today.setUTCHours(0, 0, 0, 0) // Set to midnight UTC
+
+      // Get end of the day in UTC
+      const endOfDay = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1)
+
+      // Find the vote document for today's date only (strict check)
+      const vote = await Vote.findOne({
         date: {
-          $gte: todayStart,
-          $lte: todayEnd
+          $gte: today,
+          $lte: endOfDay
         }
       })
 
-      for (const vote of votes) {
-        const teamVotes = vote.teams.map(team => ({
-          teamId: team.teamId,
-          teamVotes: parseInt(team.teamVotes) || 0, // Parse votes as integers, treat empty as 0
-          votersIds: team.votersIds
-        }))
+      // If no battle is found for today, return an error
+      if (!vote) {
+        logger.warn('No battles available for today')
+        return
+      }
 
-        const winner = teamVotes.reduce((prev, current) =>
-          prev.teamVotes > current.teamVotes ? prev : current
-        )
-
-        const loser = teamVotes.reduce((prev, current) =>
-          prev.teamVotes < current.teamVotes ? prev : current
-        )
-
-        // Update winner and loser in the vote document for the current date
-        vote.winner = winner.teamId
-        vote.lose = loser.teamId
-        await vote.save() // Save the updated document
-        logger.info(
-          `Updated vote document ${vote._id}: Winner - ${vote.winner}, Loser - ${vote.lose}`
-        )
-
-        // Calculate rewards for voters of the winning team
-        const totalVotes = winner.votersIds.reduce(
-          (sum, voter) => sum + parseInt(voter.yourVotes),
+      // Calculate team votes and determine the winner and lose
+      const teamVotes = vote.teams.map(team => ({
+        teamId: team.teamId,
+        teamVotes: team.votersIds.reduce(
+          (total, voter) => total + parseInt(voter.yourVotes) || 0,
           0
-        )
+        ),
+        votersIds: team.votersIds
+      }))
 
-        // Distribute rewards among the voters based on their vote contribution
-        for (const voter of winner.votersIds) {
-          const user = await User.findOne({ telegramId: voter.telegramId })
+      const winner = teamVotes.reduce((prev, current) =>
+        prev.teamVotes > current.teamVotes ? prev : current
+      )
 
-          if (user) {
-            // Calculate the user's reward based on their percentage of total votes
-            const userVotePercentage = parseInt(voter.yourVotes) / totalVotes // Get percentage of user's votes
-            let userReward = battleRewards * userVotePercentage // Calculate user's reward
+      const lose = teamVotes.reduce((prev, current) =>
+        prev.teamVotes < current.teamVotes ? prev : current
+      )
 
-            // Round down the reward to the nearest whole number
-            userReward = Math.floor(userReward)
+      // Update the winner and lose in the vote document
+      vote.winner = winner.teamId
+      vote.lose = lose.teamId
+      await vote.save() // Save the updated document
+      logger.info(
+        `Updated vote document ${vote._id} with winner ${vote.winner} and loser ${vote.lose}`
+      )
 
-            // Update the user's voteDetails with the calculated reward
-            user.voteDetails = {
-              ...user.voteDetails,
-              battleReward: (user.voteDetails.battleReward || 0) + userReward // Accumulate rewards if necessary
-            }
+      // Distribute battle rewards to the voters of the winning team only
+      for (const voter of winner.votersIds) {
+        // Find the user by telegramId
+        const user = await User.findOne({ telegramId: voter.telegramId })
 
-            await user.save()
-            logger.info(
-              `Updated User ${user.telegramId}: Battle Reward - ${userReward}`
-            )
-          }
+        // Check if the user exists
+        if (!user) {
+          logger.error(`User not found for telegramId ${voter.telegramId}`)
+          continue
         }
+
+        // Calculate the proportion of this user's votes out of the total team votes
+        const userVoteProportion = parseInt(voter.yourVotes) / winner.teamVotes
+
+        // Calculate the battle reward for the user based on their vote proportion
+        let battleReward = battleRewards * userVoteProportion
+
+        // Round the battle reward to the nearest integer
+        battleReward = Math.round(battleReward)
+
+        // Update the user's rewards
+        user.voteDetails.battleReward = battleReward
+
+        // Save the updated user
+        await user.save()
+
+        logger.info(
+          `Updated rewards for user with telegramId ${voter.telegramId}`
+        )
       }
     } catch (err) {
-      logger.error(`Error determining winners and losers: ${err.message}`)
+      logger.error(`Error calculating battle rewards: ${err.message}`)
     }
   }
 
   // Schedule the cron job to run every day at 3:22 PM server time
-  cron.schedule('10 18 * * *', () => {
-    logger.info('Running cron job to determine winners and losers...')
+  cron.schedule('26 16 * * *', () => {
+    logger.info('Running cron job to determine winners and lose...')
     determineWinnersAndLosers()
   })
 
