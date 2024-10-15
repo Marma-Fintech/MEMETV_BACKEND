@@ -93,7 +93,7 @@ const updateLevel = (user, currentDateString) => {
   }
 }
 
-const startDate = new Date('2024-09-01')
+const startDate = new Date('2024-09-01') // Project start date
 
 const calculatePhase = (currentDate, startDate) => {
   const oneDay = 24 * 60 * 60 * 1000
@@ -115,6 +115,9 @@ const login = async (req, res, next) => {
     const currentMonth = currentDate.getUTCMonth()
     const currentYear = currentDate.getUTCFullYear()
 
+    // Calculate the current phase
+    const currentPhase = calculatePhase(currentDate, startDate)
+
     if (currentDate > userEndDate) {
       if (!user) {
         return res.status(403).json({
@@ -126,6 +129,7 @@ const login = async (req, res, next) => {
         return res.status(201).json({
           message: 'User logged in successfully',
           user,
+          currentPhase, // Add currentPhase to response
           warning: 'No rewards can be calculated after the end date'
         })
       }
@@ -285,7 +289,8 @@ const login = async (req, res, next) => {
     updateLevel(user, currentDate.toISOString().split('T')[0])
     res.status(201).json({
       message: `User logged in successfully`,
-      user
+      user,
+      currentPhase // Include the currentPhase in the response
     })
   } catch (err) {
     logger.error(
