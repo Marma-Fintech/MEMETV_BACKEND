@@ -273,7 +273,7 @@ const determineWinnersAndLosers = async () => {
 }
 
 // Store a reference to the cron job
-const scheduledJob = cron.schedule('19 15 * * *', () => {
+const scheduledJob = cron.schedule('10 16 * * *', () => {
   logger.info('Running cron job to determine winners and lose...')
   determineWinnersAndLosers()
 })
