@@ -150,7 +150,6 @@ const login = async (req, res, next) => {
         user.voteDetails.voteDate = currentDate
         user.voteDetails.votingTeamId = ''
         user.voteDetails.votesCount = 0
-        user.voteDetails.battleReward = 0
       }
     }
 
