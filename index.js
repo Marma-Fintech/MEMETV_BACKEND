@@ -123,44 +123,34 @@ const determineWinnersAndLosers = async () => {
   if (isProcessing) {
     logger.info(
       'The job is already running. Exiting to prevent duplicate execution.'
-    )
-    return // Exit if already processing
+    );
+    return;
   }
 
-  isProcessing = true // Set the flag to indicate that processing has started
+  isProcessing = true;
 
-  const battleRewards = 1000 // Total battle rewards
+  const battleRewards = 1000; // Total battle rewards
   try {
-    // Get today's date in UTC (start of the day)
-    const today = new Date()
-    today.setUTCHours(0, 0, 0, 0) // Set to midnight UTC
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0); // Set to midnight UTC
+    const endOfDay = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1);
 
-    // Get end of the day in UTC
-    const endOfDay = new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1)
-
-    // Find the vote document for today's date only (strict check)
     const vote = await Vote.findOne({
-      date: {
-        $gte: today,
-        $lte: endOfDay
-      }
-    })
+      date: { $gte: today, $lte: endOfDay }
+    });
 
-    // If no battle is found for today, return an error
     if (!vote) {
-      logger.warn('No battles available for today')
-      isProcessing = false // Reset the flag before exiting
-      return
+      logger.warn('No battles available for today');
+      isProcessing = false;
+      return;
     }
 
-    // Check if rewards have already been distributed today
     if (vote.rewardsDistributed) {
-      logger.info('Rewards have already been distributed for today.')
-      isProcessing = false // Reset the flag before exiting
-      return // Exit if rewards were already distributed
+      logger.info('Rewards have already been distributed for today.');
+      isProcessing = false;
+      return;
     }
 
-    // Calculate team votes and determine the winner and lose
     const teamVotes = vote.teams.map(team => ({
       teamId: team.teamId,
       teamVotes: team.votersIds.reduce(
@@ -168,112 +158,157 @@ const determineWinnersAndLosers = async () => {
         0
       ),
       votersIds: team.votersIds
-    }))
+    }));
 
     const winner = teamVotes.reduce((prev, current) =>
       prev.teamVotes > current.teamVotes ? prev : current
-    )
-
+    );
     const lose = teamVotes.reduce((prev, current) =>
       prev.teamVotes < current.teamVotes ? prev : current
-    )
+    );
 
-    // Update the winner and lose in the vote document
-    vote.winner = winner.teamId
-    vote.lose = lose.teamId
+    vote.winner = winner.teamId;
+    vote.lose = lose.teamId;
 
-    // Store processed users to avoid duplication
-    const processedUsers = new Set()
+    const processedUsers = new Set();
 
-    // Distribute battle rewards to the voters of the winning team only
     await Promise.all(
       winner.votersIds.map(async voter => {
-        // Find the user by telegramId
-        const user = await User.findOne({ telegramId: voter.telegramId })
-        console.log(user)
-        // Check if the user exists and hasn't been processed
-        if (!user) {
-          logger.error(`User not found for telegramId ${voter.telegramId}`)
-          return // Exit if user not found
-        }
+        const user = await User.findOne({ telegramId: voter.telegramId });
 
-        // Skip if already processed
-        if (processedUsers.has(user.telegramId)) {
-          return // Exit if already processed
-        }
+        if (!user || processedUsers.has(user.telegramId)) return;
 
-        // Mark user as processed
-        processedUsers.add(user.telegramId)
+        processedUsers.add(user.telegramId);
 
-        // Calculate the proportion of this user's votes out of the total team votes
-        const userVoteProportion = parseInt(voter.yourVotes) / winner.teamVotes
+        const userVoteProportion = parseInt(voter.yourVotes) / winner.teamVotes;
+        let battleReward = Math.round(battleRewards * userVoteProportion);
 
-        // Calculate the battle reward for the user based on their vote proportion
-        let battleReward = battleRewards * userVoteProportion
+        user.voteDetails.battleReward += battleReward;
+        user.totalRewards += battleReward;
 
-        // Round the battle reward to the nearest integer
-        battleReward = Math.round(battleReward)
+        const todayKey = new Date().toISOString().slice(0, 10);
 
-        // Update the user's battleReward in voteDetails
-        user.voteDetails.battleReward += battleReward
-
-        // Update totalRewards
-        user.totalRewards += battleReward
-
-        // Get today's date for daily rewards
-        const todayKey = new Date().toISOString().slice(0, 10) // Format the date as YYYY-MM-DD
-
-        // Find existing daily reward for today
-        const existingDailyReward = user.dailyRewards.find(
+        let existingDailyReward = user.dailyRewards.find(
           reward => reward.createdAt.toISOString().slice(0, 10) === todayKey
-        )
+        );
 
         if (existingDailyReward) {
-          // If a daily reward exists for today, increment the totalRewards in that entry
-          existingDailyReward.totalRewards += battleReward
+          existingDailyReward.totalRewards += battleReward;
         } else {
-          // If no daily reward exists for today, create a new one
           user.dailyRewards.push({
             userId: user._id,
             telegramId: user.telegramId,
-            totalRewards: battleReward, // Adding today's battle reward
+            totalRewards: battleReward,
             userStaking: false,
-            createdAt: new Date() // Set createdAt to now
-          })
+            createdAt: new Date()
+          });
         }
 
-        // Save the updated user
-        await user.save()
+        // After updating battle rewards, check if user levels up
+        const newLevelInfo = updateLevel(user, todayKey);
 
-        // Log after successful update
-        logger.info(
-          `Updated rewards for user with telegramId ${
-            voter.telegramId
-          }: totalRewards=${user.totalRewards}, dailyRewards=${
-            existingDailyReward
-              ? existingDailyReward.totalRewards
-              : battleReward
-          }`
-        )
+        // Log level-up details if any
+        if (newLevelInfo.levelUpOccurred) {
+          logger.info(
+            `User ${user.telegramId} leveled up to level ${user.level}, received level-up bonus of ${newLevelInfo.bonusPoints}`
+          );
+        }
+
+        await user.save();
       })
-    )
+    );
 
-    // Save the updated vote document
-    vote.rewardsDistributed = true // Mark rewards as distributed
-    await vote.save()
+    vote.rewardsDistributed = true;
+    await vote.save();
 
-    logger.info(
-      `Updated vote document ${vote._id} with winner ${vote.winner} and lose ${vote.lose}`
-    )
+    logger.info(`Updated vote document ${vote._id} with winner ${vote.winner} and lose ${vote.lose}`);
   } catch (err) {
-    logger.error(`Error calculating battle rewards: ${err.message}`)
+    logger.error(`Error calculating battle rewards: ${err.message}`);
   } finally {
-    isProcessing = false // Reset the flag after processing is complete
+    isProcessing = false;
   }
-}
+};
+
+//
+const thresholds = [
+  { limit: 500, level: 1 },
+  { limit: 10000, level: 2 },
+  { limit: 50000, level: 3 },
+  { limit: 200000, level: 4 },
+  { limit: 800000, level: 5 },
+  { limit: 3000000, level: 6 },
+  { limit: 10000000, level: 7 },
+  { limit: 25000000, level: 8 },
+  { limit: 50000000, level: 9 },
+  { limit: 80000000, level: 10 }
+]
+
+const levelUpBonuses = [
+  1000, // Level 2 to Level 3
+  10000, // Level 3 to Level 4
+  50000, // Level 4 to Level 5
+  100000, // Level 5 to Level 6
+  500000, // Level 6 to Level 7
+  1000000, // Level 7 to Level 8
+  5000000, // Level 8 to Level 9
+  10000000, // Level 9 to Level 10
+  20000000 // Level 10 and above
+]
+
+
+// Update level function
+const updateLevel = (user, currentDateString) => {
+  let currentLevel = user.level || 1;
+  let newLevel = currentLevel;
+  let newLevelUpPoints = 0;
+  let levelUpOccurred = false;
+
+  for (const threshold of thresholds) {
+    if (user.totalRewards >= threshold.limit) {
+      newLevel = threshold.level;
+    } else {
+      break;
+    }
+  }
+
+  if (newLevel > currentLevel) {
+    for (let i = currentLevel; i < newLevel; i++) {
+      newLevelUpPoints += levelUpBonuses[i - 1];
+    }
+    user.totalRewards += newLevelUpPoints;
+    user.levelUpRewards += newLevelUpPoints;
+    user.level = newLevel;
+    levelUpOccurred = true;
+  }
+
+  if (newLevelUpPoints > 0) {
+    const today = new Date(currentDateString);
+    today.setUTCHours(0, 0, 0, 0);
+
+    let dailyReward = user.dailyRewards.find(dr => {
+      const rewardDate = new Date(dr.createdAt);
+      rewardDate.setUTCHours(0, 0, 0, 0);
+      return rewardDate.getTime() === today.getTime();
+    });
+
+    if (dailyReward) {
+      dailyReward.totalRewards += newLevelUpPoints;
+    } else {
+      user.dailyRewards.push({
+        userId: user._id,
+        telegramId: user.telegramId,
+        totalRewards: newLevelUpPoints,
+        userStaking: false,
+        createdAt: today
+      });
+    }
+  }
+
+  return { levelUpOccurred, bonusPoints: newLevelUpPoints };
+};
 
 // Store a reference to the cron job
-const scheduledJob = cron.schedule('10 16 * * *', () => {
+const scheduledJob = cron.schedule('36 14 * * *', () => {
   logger.info('Running cron job to determine winners and lose...')
   determineWinnersAndLosers()
 })
