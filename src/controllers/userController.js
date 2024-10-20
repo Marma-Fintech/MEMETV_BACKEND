@@ -38,7 +38,7 @@ const thresholds = [
   { limit: 80000000, level: 10 }
 ]
 
-const userEndDate = new Date('2024-12-01')
+const userEndDate = new Date('2025-01-09')
 
 const updateLevel = (user, currentDateString) => {
   const currentDate = new Date(currentDateString)
@@ -93,7 +93,7 @@ const updateLevel = (user, currentDateString) => {
   }
 }
 
-const startDate = new Date('2024-09-01') // Project start date
+const startDate = new Date('2024-10-18') // Project start date
 
 const calculatePhase = (currentDate, startDate) => {
   const oneDay = 24 * 60 * 60 * 1000
@@ -718,8 +718,8 @@ const weekRewards = async (req, res, next) => {
     )
 
     // Define the start and end dates
-    const startDate = new Date('2024-09-01')
-    const endDate = new Date('2024-11-23')
+    const startDate = new Date('2024-10-18')
+    const endDate = new Date('2025-01-09')
 
     // Initialize object to hold weekly rewards
     const weeklyRewards = {}
