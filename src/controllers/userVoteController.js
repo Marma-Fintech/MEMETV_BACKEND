@@ -195,7 +195,7 @@ const getTeamVotesByDate = async (req, res, next) => {
       date: battle.date,
       teams: battle.teams.map(team => ({
         teamId: team.teamId,
-        teamName: team?.teamName,
+        teamName: team?.teamName, 
         teamVotes: team.teamVotes
       }))
     }))

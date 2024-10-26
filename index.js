@@ -236,7 +236,6 @@ if (cluster.isMaster) {
     }
   }
 
-  //
   const thresholds = [
     { limit: 500, level: 1 },
     { limit: 10000, level: 2 },

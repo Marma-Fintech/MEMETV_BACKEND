@@ -33,6 +33,16 @@ const thresholds = [
 
 const userEndDate = new Date('2024-12-01')
 
+
+const startDate = new Date('2024-10-18') // Project start date
+
+const calculatePhase = (currentDate, startDate) => {
+  const oneDay = 24 * 60 * 60 * 1000
+  const daysDifference = Math.floor((currentDate - startDate) / oneDay)
+  const phase = Math.floor(daysDifference / 7) + 1
+  return Math.min(phase, 12) // Cap phase at 12
+}
+
 const userWatchRewards = async (req, res, next) => {
   try {
     const {
@@ -47,6 +57,7 @@ const userWatchRewards = async (req, res, next) => {
     )
 
     const now = new Date()
+    const currentPhase = calculatePhase(now, startDate)
     const currentDateString = now.toISOString().split('T')[0] // "YYYY-MM-DD"
 
     // Find the user by telegramId
@@ -277,7 +288,8 @@ const userWatchRewards = async (req, res, next) => {
       lastLogin: user.lastLogin,
       yourReferenceIds: user.yourReferenceIds,
       staking: user.staking,
-      voteDetails: user.voteDetails, // Include updated voteDetails in the response
+      voteDetails: user.voteDetails, // Include updated voteDetails in the response,
+      currentPhase: currentPhase,// Add the calculated phase
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     })
