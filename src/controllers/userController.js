@@ -93,7 +93,7 @@ const updateLevel = (user, currentDateString) => {
   }
 }
 
-const startDate = new Date('2024-10-18') // Project start date
+const startDate = new Date('2024-10-28') // Project start date
 
 const calculatePhase = (currentDate, startDate) => {
   const oneDay = 24 * 60 * 60 * 1000
@@ -718,8 +718,8 @@ const weekRewards = async (req, res, next) => {
     )
 
     // Define the start and end dates
-    const startDate = new Date('2024-10-18')
-    const endDate = new Date('2025-01-09')
+    const startDate = new Date('2024-10-28')
+    const endDate = new Date('2025-01-19')
 
     // Initialize object to hold weekly rewards
     const weeklyRewards = {}

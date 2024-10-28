@@ -31,10 +31,10 @@ const thresholds = [
   { limit: 80000000, rewardPerSecond: 10, level: 10 }
 ]
 
-const userEndDate = new Date('2024-12-01')
+const userEndDate = new Date('2025-01-19')
 
 
-const startDate = new Date('2024-10-18') // Project start date
+const startDate = new Date('2024-10-28') // Project start date
 
 const calculatePhase = (currentDate, startDate) => {
   const oneDay = 24 * 60 * 60 * 1000
