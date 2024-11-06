@@ -665,7 +665,6 @@ const calculateMultiStreak = async (
         return true;
       }
       else{
-        // console.log("Already in a Multi Streak");
         return true;
       }
     }
