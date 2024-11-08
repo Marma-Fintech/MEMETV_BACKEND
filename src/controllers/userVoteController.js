@@ -2,168 +2,166 @@ const Vote = require('../models/userVoteModel')
 const User = require('../models/userModel')
 const logger = require('../helpers/logger')
 
-const getBattleByDate = async (req, res) => {
-  let date
+// const getBattleByDate = async (req, res, next) => {
+//   let date
 
-  try {
-    date = req.query.date
+//   try {
+//     date = req.query.date
 
-    if (!date) {
-      return res
-        .status(400)
-        .json({ message: 'Date query parameter is required' })
-    }
+//     if (!date) {
+//       return res
+//         .status(400)
+//         .json({ message: 'Date query parameter is required' })
+//     }
 
-    // Log the incoming request
-    logger.info(`Received request for battles on date: ${date}`)
+//     // Log the incoming request
+//     logger.info(`Received request for battles on date: ${date}`)
 
-    // Try to parse the date properly
-    const parsedDate = new Date(date)
-    if (isNaN(parsedDate.getTime())) {
-      logger.warn(`Invalid date format received: ${date}`)
-      return res.status(400).json({ message: 'Invalid date format' })
-    }
+//     // Try to parse the date properly
+//     const parsedDate = new Date(date)
+//     if (isNaN(parsedDate.getTime())) {
+//       logger.warn(`Invalid date format received: ${date}`)
+//       return res.status(400).json({ message: 'Invalid date format' })
+//     }
 
-    // Convert the parsed date to the start and end of the day in UTC
-    const startOfDay = new Date(parsedDate)
-    startOfDay.setUTCHours(0, 0, 0, 0)
-    const endOfDay = new Date(parsedDate)
-    endOfDay.setUTCHours(23, 59, 59, 999)
+//     // Convert the parsed date to the start and end of the day in UTC
+//     const startOfDay = new Date(parsedDate)
+//     startOfDay.setUTCHours(0, 0, 0, 0)
+//     const endOfDay = new Date(parsedDate)
+//     endOfDay.setUTCHours(23, 59, 59, 999)
 
-    // Query the database to get battles for the provided date
-    const battles = await Vote.find({
-      date: {
-        $gte: startOfDay,
-        $lte: endOfDay
-      }
-    })
+//     // Query the database to get battles for the provided date
+//     const battles = await Vote.find({
+//       date: {
+//         $gte: startOfDay,
+//         $lte: endOfDay
+//       }
+//     })
 
-    // If no battles found
-    if (battles.length === 0) {
-      logger.warn(`No battles found for the date: ${date}`)
-      return res
-        .status(404)
-        .json({ message: 'No battles found for the given date' })
-    }
+//     // If no battles found
+//     if (battles.length === 0) {
+//       logger.warn(`No battles found for the date: ${date}`)
+//       return res
+//         .status(404)
+//         .json({ message: 'No battles found for the given date' })
+//     }
 
-    // Initialize winCounts and lossCounts
-    const winCounts = {}
-    const lossCounts = {}
+//     // Initialize winCounts and lossCounts
+//     const winCounts = {}
+//     const lossCounts = {}
 
-    // Get unique team IDs for counting wins and losses
-    const teamIds = [
-      ...new Set(battles.flatMap(battle => [battle.winner, battle.lose]))
-    ]
+//     // Get unique team IDs for counting wins and losses
+//     const teamIds = [
+//       ...new Set(battles.flatMap(battle => [battle.winner, battle.lose]))
+//     ]
 
-    // Count wins for each teamId
-    const winResults = await Vote.aggregate([
-      {
-        $match: {
-          winner: { $in: teamIds }
-        }
-      },
-      {
-        $group: {
-          _id: '$winner',
-          count: { $sum: 1 }
-        }
-      }
-    ])
+//     // Count wins for each teamId
+//     const winResults = await Vote.aggregate([
+//       {
+//         $match: {
+//           winner: { $in: teamIds }
+//         }
+//       },
+//       {
+//         $group: {
+//           _id: '$winner',
+//           count: { $sum: 1 }
+//         }
+//       }
+//     ])
 
-    // Store win counts
-    winResults.forEach(result => {
-      winCounts[result._id] = result.count
-    })
+//     // Store win counts
+//     winResults.forEach(result => {
+//       winCounts[result._id] = result.count
+//     })
 
-    // Count losses for each teamId
-    const lossResults = await Vote.aggregate([
-      {
-        $match: {
-          lose: { $in: teamIds }
-        }
-      },
-      {
-        $group: {
-          _id: '$lose',
-          count: { $sum: 1 }
-        }
-      }
-    ])
+//     // Count losses for each teamId
+//     const lossResults = await Vote.aggregate([
+//       {
+//         $match: {
+//           lose: { $in: teamIds }
+//         }
+//       },
+//       {
+//         $group: {
+//           _id: '$lose',
+//           count: { $sum: 1 }
+//         }
+//       }
+//     ])
 
-    // Store loss counts
-    lossResults.forEach(result => {
-      lossCounts[result._id] = result.count
-    })
+//     // Store loss counts
+//     lossResults.forEach(result => {
+//       lossCounts[result._id] = result.count
+//     })
 
-    // Now, aggregate total votes for all teams in the Vote model
-    const totalVotesResults = await Vote.aggregate([
-      {
-        $unwind: '$teams'
-      },
-      {
-        $group: {
-          _id: '$teams.teamId',
-          totalVotes: {
-            $sum: {
-              $cond: [
-                { $eq: ['$teams.teamVotes', ''] }, // Check if teamVotes is an empty string
-                0, // If true, treat as 0
-                { $toInt: '$teams.teamVotes' } // Otherwise, convert to integer
-              ]
-            }
-          }
-        }
-      }
-    ])
+//     // Now, aggregate total votes for all teams in the Vote model
+//     const totalVotesResults = await Vote.aggregate([
+//       {
+//         $unwind: '$teams'
+//       },
+//       {
+//         $group: {
+//           _id: '$teams.teamId',
+//           totalVotes: {
+//             $sum: {
+//               $cond: [
+//                 { $eq: ['$teams.teamVotes', ''] }, // Check if teamVotes is an empty string
+//                 0, // If true, treat as 0
+//                 { $toInt: '$teams.teamVotes' } // Otherwise, convert to integer
+//               ]
+//             }
+//           }
+//         }
+//       }
+//     ])
 
-    // Create a map to store total votes for each teamId
-    const teamVotesMap = {}
-    totalVotesResults.forEach(result => {
-      teamVotesMap[result._id] = result.totalVotes
-    })
+//     // Create a map to store total votes for each teamId
+//     const teamVotesMap = {}
+//     totalVotesResults.forEach(result => {
+//       teamVotesMap[result._id] = result.totalVotes
+//     })
 
-    // Convert the map to an array of [teamId, totalVotes] pairs
-    const teamVotesArray = Object.entries(teamVotesMap).map(
-      ([teamId, totalVotes]) => ({
-        teamId,
-        totalVotes
-      })
-    )
+//     // Convert the map to an array of [teamId, totalVotes] pairs
+//     const teamVotesArray = Object.entries(teamVotesMap).map(
+//       ([teamId, totalVotes]) => ({
+//         teamId,
+//         totalVotes
+//       })
+//     )
 
-    // Sort teams by totalVotes in descending order
-    teamVotesArray.sort((a, b) => b.totalVotes - a.totalVotes)
+//     // Sort teams by totalVotes in descending order
+//     teamVotesArray.sort((a, b) => b.totalVotes - a.totalVotes)
 
-    // Assign ranks
-    const rankMap = {}
-    teamVotesArray.forEach((team, index) => {
-      rankMap[team.teamId] = index + 1 // Rank starts at 1
-    })
+//     // Assign ranks
+//     const rankMap = {}
+//     teamVotesArray.forEach((team, index) => {
+//       rankMap[team.teamId] = index + 1 // Rank starts at 1
+//     })
 
-    // Prepare the response array with win and loss counts
-    const response = battles.map(battle => ({
-      _id: battle._id,
-      teams: battle.teams.map(team => ({
-        _id: team._id,
-        teamName: team.teamName,
-        teamId: team.teamId,
-        rank: rankMap[team.teamId] || 0, // Use rank from the map
-        wins: winCounts[team.teamId] || 0,
-        losses: lossCounts[team.teamId] || 0
-      })),
-      date: battle.date
-    }))
+//     // Prepare the response array with win and loss counts
+//     const response = battles.map(battle => ({
+//       _id: battle._id,
+//       teams: battle.teams.map(team => ({
+//         _id: team._id,
+//         teamName: team.teamName,
+//         teamId: team.teamId,
+//         rank: rankMap[team.teamId] || 0, // Use rank from the map
+//         wins: winCounts[team.teamId] || 0,
+//         losses: lossCounts[team.teamId] || 0
+//       })),
+//       date: battle.date
+//     }))
 
-    // Log successful query
-    logger.info(`Battles found for date: ${date}, sending response.`)
+//     // Log successful query
+//     logger.info(`Battles found for date: ${date}, sending response.`)
 
-    // Send the found battles back
-    res.json(response)
-  } catch (err) {
-    // Log the error with the date variable
-    logger.error(`Error fetching battles for date: ${date} - ${err.message}`)
-    res.status(500).json({ message: 'Server error', error: err.message })
-  }
-}
+//     // Send the found battles back
+//     res.json(response)
+//   } catch (err) {
+//     next(err)
+//   }
+// }
 
 const getTeamVotesByDate = async (req, res, next) => {
   try {
@@ -195,7 +193,7 @@ const getTeamVotesByDate = async (req, res, next) => {
       date: battle.date,
       teams: battle.teams.map(team => ({
         teamId: team.teamId,
-        teamName: team?.teamName, 
+        teamName: team?.teamName,
         teamVotes: team.teamVotes
       }))
     }))
@@ -204,9 +202,7 @@ const getTeamVotesByDate = async (req, res, next) => {
     res.status(200).json(responseData)
   } catch (err) {
     next(err)
-    logger.error(
-      `Error ${err.message}`
-    )
+    logger.error(`Error ${err.message}`)
   }
 }
 
@@ -293,7 +289,6 @@ const userChooseTeam = async (req, res, next) => {
 }
 
 module.exports = {
-  getBattleByDate,
   userChooseTeam,
   getTeamVotesByDate
 }
