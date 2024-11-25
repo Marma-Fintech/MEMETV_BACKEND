@@ -15,7 +15,7 @@ require('dotenv').config()
 const http = require('http') // Add http server
 const WebSocket = require('ws') // Add WebSocket
 const rateLimit = require('express-rate-limit')
-const { createProxyMiddleware } = require('http-proxy-middleware')
+const { proxyMiddleware } = require('http-proxy-middleware')
 if (cluster.isMaster) {
   const token = process.env.TELEGRAM_TOKEN
   const bot = new TelegramBot(token, { polling: true })
@@ -80,9 +80,10 @@ if (cluster.isMaster) {
   // Set up routes
   const router = require('./src/routes/allRoutes')
   app.use(router)
+
   app.use(
     '/api',
-    createProxyMiddleware({
+    proxyMiddleware({
       target: 'https://api.thememe.tv',
       changeOrigin: true
     })
