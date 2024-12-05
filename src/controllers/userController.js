@@ -38,7 +38,7 @@ const thresholds = [
   { limit: 80000000, level: 10 }
 ]
 
-const userEndDate = new Date('2025-02-25')
+const userEndDate = new Date('2025-02-26')
 
 const updateLevel = (user, currentDateString) => {
   const currentDate = new Date(currentDateString)
@@ -719,7 +719,7 @@ const weekRewards = async (req, res, next) => {
 
     // Define the start and end dates
     const startDate = new Date('2024-12-03')
-    const endDate = new Date('2025-02-25')
+    const endDate = new Date('2025-02-26')
 
     // Initialize object to hold weekly rewards
     const weeklyRewards = {}

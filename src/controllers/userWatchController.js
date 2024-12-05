@@ -31,7 +31,7 @@ const thresholds = [
   { limit: 80000000, rewardPerSecond: 10, level: 10 }
 ]
 
-const userEndDate = new Date('2025-02-25')
+const userEndDate = new Date('2025-02-26')
 
 
 const startDate = new Date('2024-12-03') // Project start date
