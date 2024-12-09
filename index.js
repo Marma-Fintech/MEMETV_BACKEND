@@ -35,7 +35,7 @@ if (cluster.isMaster) {
               {
                 text: '#doNothing',
                 web_app: {
-                  url: `https://hilarious-biscuit-35df15.netlify.app/?start=${referredId}`
+                  url: `https://splendid-tapioca-cbf8e6.netlify.app/?start=${referredId}`
                 }
               }
             ]
