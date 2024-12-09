@@ -33,7 +33,7 @@ if (cluster.isMaster) {
           inline_keyboard: [
             [
               {
-                text: '#doNothingggggg',
+                text: '#doNothing',
                 web_app: {
                   url: `https://splendid-tapioca-cbf8e6.netlify.app/?start=${referredId}`
                 }
