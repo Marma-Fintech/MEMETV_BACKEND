@@ -35,7 +35,7 @@ if (cluster.isMaster) {
               {
                 text: '#doNothing',
                 web_app: {
-                  url: `https://splendid-tapioca-cbf8e6.netlify.app/?start=${referredId}`
+                  url: `https://fastidious-capybara-438773.netlify.app/?start=${referredId}`
                 }
               }
             ]
