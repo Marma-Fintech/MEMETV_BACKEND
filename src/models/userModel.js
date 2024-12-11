@@ -275,6 +275,10 @@ const userSchema = mongoose.Schema(
         }
       }
     ],
+    tutorialStatus: {
+      type: Boolean,
+      default: false
+    },
     voteDetails: {
       voteStatus: { type: Boolean, default: false },
       voteDate: { type: Date },

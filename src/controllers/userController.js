@@ -858,6 +858,28 @@ const addWalletAddress = async (req, res, next) => {
   }
 }
 
+const tutorialStatus = async (req, res, next) => {
+  try {
+    const { telegramId } = req.params;
+    const { tutorialStatus } = req.body;
+
+    // Find the user by telegramId and update the tutorialStatus
+    const updatedUser = await User.findOneAndUpdate(
+      { telegramId },
+      { tutorialStatus },
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json({ message: 'Tutorial status updated successfully', user: updatedUser });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   login,
   userDetails,
@@ -865,5 +887,6 @@ module.exports = {
   purchaseGameCards,
   weekRewards,
   userTaskRewards,
-  addWalletAddress
+  addWalletAddress,
+  tutorialStatus
 }

@@ -9,6 +9,7 @@ const {
   weekRewards,
   userTaskRewards,
   addWalletAddress,
+  tutorialStatus
 } = require('../controllers/userController')
 
 router.post(
@@ -21,6 +22,17 @@ router.post(
     })
   }),
   login
+)
+
+router.post('/tutorialStatus/:telegramId',celebrate({
+  [Segments.PARAMS]: Joi.object().keys({
+    telegramId: Joi.string().required()
+  }),
+  [Segments.BODY]: Joi.object().keys({
+    tutorialStatus: Joi.boolean().required()
+  })
+}),
+tutorialStatus
 )
 
 router.get(
