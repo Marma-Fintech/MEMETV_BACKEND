@@ -239,7 +239,7 @@ if (cluster.isMaster) {
         `Updated vote document ${vote._id} with winner ${vote.winner} and lose ${vote.lose}`
       )
     } catch (err) {
-      logger.error(`Error calculating battle rewards: ${err.message}`)
+      logger.error(`Error calculating battle reward: ${err.message}`)
     } finally {
       isProcessing = false
     }
