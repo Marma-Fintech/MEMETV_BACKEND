@@ -28,7 +28,7 @@ const levelUpBonuses = [
 
 const thresholds = [
   { limit: 500, level: 1 },
-  { limit: 1000, level: 2 },
+  { limit: 10000, level: 2 },
   { limit: 50000, level: 3 },
   { limit: 200000, level: 4 },
   { limit: 800000, level: 5 },
