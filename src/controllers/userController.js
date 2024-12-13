@@ -647,135 +647,139 @@ const purchaseGameCards = async (req, res, next) => {
 
 const weekRewards = async (req, res, next) => {
   try {
-    let { telegramId } = req.params
+    let { telegramId } = req.params;
 
     // Log the incoming request
     logger.info(
       `Received request to calculate weekly rewards for telegramId: ${telegramId}`
-    )
+    );
 
     // Trim leading and trailing spaces
-    telegramId = telegramId.trim()
+    telegramId = telegramId.trim();
 
     // Find user by telegramId
-    const userDetail = await User.findOne({ telegramId: telegramId })
+    const userDetail = await User.findOne({ telegramId: telegramId });
 
     // Check if user exists
     if (!userDetail) {
-      logger.warn(`User not found for telegramId: ${telegramId}`)
-      return res.status(404).json({ message: 'User not found' })
+      logger.warn(`User not found for telegramId: ${telegramId}`);
+      return res.status(404).json({ message: 'User not found' });
     }
 
     logger.info(
       `User found for telegramId: ${telegramId}, calculating weekly rewards...`
-    )
+    );
 
-    // Define the start and end dates
-    const startDate = new Date('2024-12-03')
-    const endDate = new Date('2025-02-26')
+    // Define the start date (e.g., '2024-12-03')
+    const startDate = new Date('2024-12-03');
+    const lastLogin = new Date(userDetail.lastLogin); // User's last login date
 
     // Get today's date
-    const today = new Date().toISOString().split('T')[0]
+    const today = new Date().toISOString().split('T')[0];
 
     // Initialize object to hold weekly rewards
-    const weeklyRewards = {}
+    const weeklyRewards = {};
 
     // Helper function to get rewards for a specific week
     const getRewardsForWeek = (weekStartDate, weekEndDate) => {
-      const weekRewards = userDetail.dailyRewards.filter(reward => {
-        const rewardDate = new Date(reward.createdAt)
+      const weekRewards = userDetail.dailyRewards.filter((reward) => {
+        const rewardDate = new Date(reward.createdAt);
 
         // Normalize dates to strip time part
-        const normalizedRewardDate = rewardDate.toISOString().split('T')[0]
+        const normalizedRewardDate = rewardDate.toISOString().split('T')[0];
         const normalizedWeekStartDate = weekStartDate
           .toISOString()
-          .split('T')[0]
-        const normalizedWeekEndDate = weekEndDate.toISOString().split('T')[0]
+          .split('T')[0];
+        const normalizedWeekEndDate = weekEndDate.toISOString().split('T')[0];
 
         return (
           normalizedRewardDate >= normalizedWeekStartDate &&
           normalizedRewardDate <= normalizedWeekEndDate
-        )
-      })
+        );
+      });
 
-      const rewardsForWeek = []
+      const rewardsForWeek = [];
       for (let i = 0; i < 7; i++) {
-        const date = new Date(weekStartDate)
-        date.setDate(weekStartDate.getDate() + i)
-        const dateString = date.toISOString().split('T')[0]
+        const date = new Date(weekStartDate);
+        date.setDate(weekStartDate.getDate() + i);
+        const dateString = date.toISOString().split('T')[0];
 
         // Find reward for the specific date
-        const rewardForDate = weekRewards.find(reward => {
+        const rewardForDate = weekRewards.find((reward) => {
           const rewardDateString = new Date(reward.createdAt)
             .toISOString()
-            .split('T')[0]
-          return rewardDateString === dateString
-        })
+            .split('T')[0];
+          return rewardDateString === dateString;
+        });
 
         rewardsForWeek.push({
           date: dateString,
           totalRewards: rewardForDate ? rewardForDate.totalRewards : 0,
           userStaking: rewardForDate ? rewardForDate.userStaking : 0,
           _id: rewardForDate ? rewardForDate._id : null,
-          todayDate: dateString === today // Add todayDate field
-        })
+          todayDate: dateString === today, // Add todayDate field
+        });
       }
 
       // Calculate the total weekly rewards
       const totalWeeklyRewards = rewardsForWeek.reduce(
         (total, reward) => total + reward.totalRewards,
         0
-      )
+      );
 
-      return { totalWeeklyRewards, rewardsForWeek }
-    }
+      return { totalWeeklyRewards, rewardsForWeek };
+    };
 
-    // Loop through each week from startDate to endDate
-    let currentWeekStartDate = new Date(startDate)
-    let weekNumber = 1
-    while (currentWeekStartDate <= endDate) {
-      const currentWeekEndDate = new Date(currentWeekStartDate)
-      currentWeekEndDate.setDate(currentWeekStartDate.getDate() + 6) // End of the current week
+    // Loop through each week from startDate to lastLogin
+    let currentWeekStartDate = new Date(startDate);
+    let weekNumber = 1;
+    while (currentWeekStartDate <= lastLogin) {
+      // Calculate the end of the current week (7 days from currentWeekStartDate)
+      const currentWeekEndDate = new Date(currentWeekStartDate);
+      currentWeekEndDate.setDate(currentWeekStartDate.getDate() + 6); // 7-day period
 
-      // Adjust the end date if it exceeds the specified endDate
-      if (currentWeekEndDate > endDate) {
-        currentWeekEndDate.setDate(endDate.getDate())
+      // If the week exceeds lastLogin, adjust the endDate to lastLogin
+      if (currentWeekEndDate > lastLogin) {
+        currentWeekEndDate.setDate(lastLogin.getDate());
       }
 
       // Get rewards for the current week
       const weeklyData = getRewardsForWeek(
         currentWeekStartDate,
         currentWeekEndDate
-      )
+      );
+
       weeklyRewards[`week${weekNumber}`] = {
         startDate: currentWeekStartDate.toISOString().split('T')[0],
-        endDate: currentWeekEndDate.toISOString().split('T')[0],
-        ...weeklyData
-      }
+        endDate: currentWeekEndDate.toISOString().split('T')[0], // End date is calculated
+        ...weeklyData,
+      };
 
       logger.info(
         `Week ${weekNumber} rewards calculated from ${
           currentWeekStartDate.toISOString().split('T')[0]
         } to ${currentWeekEndDate.toISOString().split('T')[0]}`
-      )
+      );
 
       // Move to the next week
-      currentWeekStartDate.setDate(currentWeekStartDate.getDate() + 7)
-      weekNumber++
+      currentWeekStartDate.setDate(currentWeekStartDate.getDate() + 7);
+      weekNumber++;
     }
 
     // Send the response
     logger.info(
       `Weekly rewards calculation completed for telegramId: ${telegramId}`
-    )
-    res.json(weeklyRewards)
+    );
+    res.json(weeklyRewards);
   } catch (err) {
     logger.error(
       `Error calculating weekly rewards for telegramId: ${telegramId} - ${err.message}`
-    )
-    next(err)
+    );
+    next(err);
   }
-}
+};
+
+
 
 const addWalletAddress = async (req, res, next) => {
   const { telegramId } = req.params
