@@ -31,16 +31,13 @@ const thresholds = [
   { limit: 80000000, rewardPerSecond: 10, level: 10 }
 ]
 
-const userEndDate = new Date('2025-02-26')
-
-
 const startDate = new Date('2024-12-03') // Project start date
 
 const calculatePhase = (currentDate, startDate) => {
   const oneDay = 24 * 60 * 60 * 1000
   const daysDifference = Math.floor((currentDate - startDate) / oneDay)
   const phase = Math.floor(daysDifference / 7) + 1
-  return Math.min(phase, 12) // Cap phase at 12
+  return Math.min(phase) // Cap phase at 12
 }
 
 const userWatchRewards = async (req, res, next) => {
@@ -69,16 +66,6 @@ const userWatchRewards = async (req, res, next) => {
     }
 
     logger.info(`User found for telegramId: ${telegramId}`)
-
-    // Check if the current date is past the userEndDate
-    if (now > user.userEndDate) {
-      logger.warn(`User has reached the end date for telegramId: ${telegramId}`)
-      return res.status(403).json({
-        message:
-          'User has reached the end date. No rewards or boosters can be processed.',
-        user
-      })
-    }
 
     // Watch rewards and level-up logic (unchanged from your current logic)
     let remainingSeconds = userWatchSeconds
@@ -360,17 +347,6 @@ const purchaseBooster = async (req, res, next) => {
     if (!user) {
       logger.warn(`User not found for telegramId: ${telegramId}`)
       return res.status(404).json({ message: 'User not found' })
-    }
-
-    // Check if the current date is past the userEndDate
-    if (now > userEndDate) {
-      logger.info(
-        `Attempted purchase after userEndDate for telegramId: ${telegramId}`
-      )
-      return res.status(403).json({
-        message: 'User has reached the end date. No purchases can be made.',
-        user
-      })
     }
 
     // Check if the user has enough boosterPoints available in totalRewards

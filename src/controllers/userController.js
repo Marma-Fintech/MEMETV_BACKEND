@@ -1,6 +1,5 @@
 const User = require('../models/userModel')
 const logger = require('../helpers/logger')
-const checkRewardsLimit = require('../helpers/checkRewardLimit')
 
 // Function to generate a 5-character alphanumeric identifier
 const generateRefId = () => {
@@ -38,6 +37,8 @@ const thresholds = [
   { limit: 50000000, level: 9 },
   { limit: 80000000, level: 10 }
 ]
+
+
 
 const updateLevel = (user, currentDateString) => {
   const currentDate = new Date(currentDateString);
@@ -321,51 +322,35 @@ const userDetails = async (req, res, next) => {
   }
 }
 
+
 const userGameRewards = async (req, res, next) => {
-  let telegramId // Declare telegramId outside the try block so it is available in the catch block
   try {
-    const { telegramId: bodyTelegramId, boosters, gamePoints } = req.body
-    telegramId = bodyTelegramId // Assign the value of telegramId here
+    const { telegramId, boosters, gamePoints } = req.body
 
     // Get the current date and time
     const now = new Date()
+
     logger.info(
       `Received request to add game rewards for user with telegramId: ${telegramId}`
     )
 
     // Find the user by telegramId
     const user = await User.findOne({ telegramId })
+
     if (!user) {
       logger.warn(`User not found for telegramId: ${telegramId}`)
       return res.status(404).json({ message: 'User not found' })
     }
 
-    // Check if we can add the rewards (using the helper function)
-    const { canAdd, pointsToAdd, remainingRewards } = await checkRewardsLimit(
-      gamePoints
-    )
-    if (!canAdd) {
-      return res.status(403).json({
-        message: 'Rewards limit reached. No more rewards can be distributed.',
-        remainingRewards
-      })
-    }
-
-    // Ensure boosters are added to the user
-    if (boosters && boosters.length > 0) {
-      user.boosters.push(...boosters)
-      logger.info(`Boosters added for user with telegramId: ${telegramId}`)
-    }
-
-    // Add the gamePoints to totalRewards and gameRewards
-    user.totalRewards += pointsToAdd
-    user.gameRewards.gamePoints += pointsToAdd
-    user.gameRewards.createdAt = now // Update createdAt to the current date and time
     const currentDateString = now.toISOString().split('T')[0] // "YYYY-MM-DD"
+
+    // Check if there is an existing entry in dailyRewards
     let lastDailyReward = user.dailyRewards[user.dailyRewards.length - 1]
     const lastRewardDate = lastDailyReward
       ? new Date(lastDailyReward.createdAt)
       : null
+
+    // Ensure that the current date is not earlier than the last recorded date in dailyRewards
     if (lastRewardDate && now < lastRewardDate) {
       logger.warn(
         `The current date ${currentDateString} is earlier than the last reward date ${
@@ -378,9 +363,32 @@ const userGameRewards = async (req, res, next) => {
       })
     }
 
+    // Push new boosters into the existing boosters array
+    if (boosters && boosters.length > 0) {
+      user.boosters.push(...boosters)
+      logger.info(`Boosters added for user with telegramId: ${telegramId}`)
+    }
+
+    // Ensure gamePoints is a number
+    const pointsToAdd = Number(gamePoints) || 0
+
+    // Add gamePoints to totalRewards and gameRewards
+    if (pointsToAdd > 0) {
+      user.totalRewards += pointsToAdd
+
+      // Update gameRewards
+      user.gameRewards.gamePoints += pointsToAdd
+      user.gameRewards.createdAt = now // Update createdAt to the current date and time
+
+      logger.info(
+        `Added ${pointsToAdd} game points to user with telegramId: ${telegramId}`
+      )
+    }
+
     const lastRewardDateString = lastRewardDate
       ? lastRewardDate.toISOString().split('T')[0]
       : null
+
     if (lastRewardDateString !== currentDateString) {
       // Create a new dailyReward entry for today
       user.dailyRewards.push({
@@ -411,10 +419,10 @@ const userGameRewards = async (req, res, next) => {
     logger.info(
       `Successfully added boosters and gamePoints for user with telegramId: ${telegramId}`
     )
-    return res.status(200).json({
-      message: `Boosters and gamePoints added successfully. ${pointsToAdd} points added.`,
-      user
-    })
+
+    return res
+      .status(200)
+      .json({ message: 'Boosters and gamePoints added successfully', user })
   } catch (err) {
     logger.error(
       `Error processing game rewards for user with telegramId: ${telegramId} - ${err.message}`
@@ -444,19 +452,6 @@ const userTaskRewards = async (req, res, next) => {
 
     // Ensure taskPoints is a Number
     const pointsToAdd = Number(taskPoints) || 0
-
-    // Use checkRewardsLimit to validate the task rewards
-    const {
-      canAdd,
-      pointsToAdd: adjustedPoints,
-      remainingRewards
-    } = await checkRewardsLimit(taskPoints)
-    if (!canAdd) {
-      return res.status(403).json({
-        message: 'Rewards limit reached. No more rewards can be distributed.',
-        remainingRewards
-      })
-    }
 
     // Check if the system date is earlier than the last dailyRewards date
     const lastDailyReward = user.dailyRewards[user.dailyRewards.length - 1]
@@ -492,16 +487,16 @@ const userTaskRewards = async (req, res, next) => {
     }
 
     // Add taskPoints to totalRewards and taskRewards
-    if (adjustedPoints > 0) {
-      user.totalRewards += adjustedPoints
+    if (pointsToAdd > 0) {
+      user.totalRewards += pointsToAdd
 
       // Update taskPoints within taskRewards
-      user.taskRewards.taskPoints += adjustedPoints
+      user.taskRewards.taskPoints += pointsToAdd
 
       // Set the specific channel to true
       user.taskRewards[channel] = true
       logger.info(
-        `Updated ${channel} to true and added ${adjustedPoints} task points for user with telegramId: ${telegramId}`
+        `Updated ${channel} to true and added ${pointsToAdd} task points for user with telegramId: ${telegramId}`
       )
     }
 
@@ -516,7 +511,7 @@ const userTaskRewards = async (req, res, next) => {
       user.dailyRewards.push({
         userId: user._id,
         telegramId: user.telegramId,
-        totalRewards: adjustedPoints, // Store only the points added today
+        totalRewards: pointsToAdd, // Store only the points added today
         userStaking: false,
         createdAt: now
       })
@@ -525,7 +520,7 @@ const userTaskRewards = async (req, res, next) => {
       )
     } else {
       // Update the existing entry for today
-      dailyReward.totalRewards += adjustedPoints
+      dailyReward.totalRewards += pointsToAdd
       dailyReward.updatedAt = now
       logger.info(
         `Updated daily reward entry for user with telegramId: ${telegramId}`
