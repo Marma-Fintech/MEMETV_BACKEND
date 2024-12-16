@@ -4,6 +4,7 @@ const Quiz = require('../models/userQuestions')
 const mongoose = require('mongoose')
 const { isValidObjectId } = mongoose
 const logger = require('../helpers/logger')
+const TOTALREWARDS_LIMIT = 10000;
 
 const levelUpBonuses = [
   // 500, Level 1 bonus, you reach 1000 its level2 you got level2 bonus points
@@ -20,7 +21,7 @@ const levelUpBonuses = [
 
 const thresholds = [
   { limit: 0, rewardPerSecond: 1, level: 1 },
-  { limit: 10000, rewardPerSecond: 2, level: 2 },
+  { limit: 600, rewardPerSecond: 2, level: 2 },
   { limit: 50000, rewardPerSecond: 3, level: 3 },
   { limit: 200000, rewardPerSecond: 4, level: 4 },
   { limit: 800000, rewardPerSecond: 5, level: 5 },
@@ -411,108 +412,117 @@ const purchaseBooster = async (req, res, next) => {
 
 const stakingRewards = async (req, res, next) => {
   try {
-    const { stakingId } = req.body
+    const { stakingId } = req.body;
 
     // Log the incoming request
-    logger.info(
-      `Received request to process staking rewards for stakingId: ${stakingId}`
-    )
+    logger.info(`Received request to process staking rewards for stakingId: ${stakingId}`);
 
     // Validate stakingId
     if (!isValidObjectId(stakingId)) {
-      logger.warn(`Invalid stakingId format: ${stakingId}`)
-      return res.status(400).json({ message: 'Invalid stakingId format' })
+      logger.warn(`Invalid stakingId format: ${stakingId}`);
+      return res.status(400).json({ message: 'Invalid stakingId format' });
     }
 
     // Find the user with the matching stakingId in dailyRewards array
-    const user = await User.findOne({
-      'dailyRewards._id': stakingId
-    })
+    const user = await User.findOne({ 'dailyRewards._id': stakingId });
 
     if (!user) {
-      logger.warn(`User not found for stakingId: ${stakingId}`)
-      return res.status(404).json({ message: 'User not found' })
+      logger.warn(`User not found for stakingId: ${stakingId}`);
+      return res.status(404).json({ message: 'User not found' });
     }
 
     // Find the specific reward in the dailyRewards array
-    const reward = user.dailyRewards.id(stakingId)
+    const reward = user.dailyRewards.id(stakingId);
 
     if (reward.userStaking) {
-      logger.info(`User has already staked for stakingId: ${stakingId}`)
-      return res.status(400).json({ message: 'User has already staked' })
+      logger.info(`User has already staked for stakingId: ${stakingId}`);
+      return res.status(400).json({ message: 'User has already staked' });
     }
 
-    // Calculate the additional reward
-    const additionalReward = reward.totalRewards
+    // Calculate the total rewards used across all users
+    const totalRewardsInSystem = await User.aggregate([
+      { $group: { _id: null, total: { $sum: "$totalRewards" } } }
+    ]);
 
-    // Double the total reward
-    const doubledReward = reward.totalRewards * 2
+    const totalRewardsUsed = totalRewardsInSystem[0] ? totalRewardsInSystem[0].total : 0;
+
+    const availableSpace = TOTALREWARDS_LIMIT - totalRewardsUsed;
+
+    if (availableSpace <= 0) {
+      logger.warn(`The total rewards limit of ${TOTALREWARDS_LIMIT} has been reached.`);
+      return res.status(403).json({
+        message: `Total rewards limit of ${TOTALREWARDS_LIMIT} exceeded across all users.`,
+      });
+    }
+
+    // Calculate the additional reward and ensure it fits within the available space
+    const additionalReward = reward.totalRewards;
+    const spaceRemaining = Math.min(additionalReward, availableSpace); // Limit to available space
+
+    if (spaceRemaining <= 0) {
+      logger.warn(`No available space to add staking rewards.`);
+      return res.status(403).json({
+        message: `Staking rewards cannot be added as the total rewards limit has been reached.`,
+      });
+    }
+
+    // Double the total reward (limited by available space)
+    const doubledReward = reward.totalRewards + spaceRemaining;
 
     // Update the totalRewards and userStaking in the dailyRewards array
-    reward.totalRewards = doubledReward
-    reward.userStaking = true
+    reward.totalRewards = doubledReward;
+    reward.userStaking = true;
 
     // Update the user's totalRewards and stakingRewards
-    user.totalRewards += additionalReward // Only add the extra amount to totalRewards
-    user.stakingRewards += additionalReward // Add the same extra amount to stakingRewards
+    user.totalRewards = Math.min(user.totalRewards + spaceRemaining, TOTALREWARDS_LIMIT);
+    user.stakingRewards += spaceRemaining;
 
     // Log the reward update
-    logger.info(
-      `Doubled rewards for stakingId: ${stakingId}, added ${additionalReward} to user ${user._id}`
-    )
+    logger.info(`Doubled rewards for stakingId: ${stakingId}, added ${spaceRemaining} to user ${user._id}`);
 
     // Check for level-up bonuses and update the user's level
-    let currentLevel = user.level
+    let currentLevel = user.level;
     while (
       currentLevel < thresholds.length &&
       user.totalRewards >= thresholds[currentLevel].limit
     ) {
       // Apply level-up bonus if the user is leveling up
-      if (
-        currentLevel > 0 &&
-        user.totalRewards >= thresholds[currentLevel].limit
-      ) {
-        const levelUpBonus = levelUpBonuses[currentLevel - 1]
-        user.totalRewards += levelUpBonus
-        user.levelUpRewards += levelUpBonus
+      if (currentLevel > 0 && user.totalRewards >= thresholds[currentLevel].limit) {
+        const levelUpBonus = levelUpBonuses[currentLevel - 1];
+        const levelUpSpaceRemaining = Math.min(levelUpBonus, TOTALREWARDS_LIMIT - user.totalRewards);
 
-        // Log the level-up
-        logger.info(
-          `User ${user._id} leveled up to ${
-            currentLevel + 1
-          } with bonus ${levelUpBonus}`
-        )
+        if (levelUpSpaceRemaining > 0) {
+          user.totalRewards += levelUpSpaceRemaining;
+          user.levelUpRewards += levelUpSpaceRemaining;
+
+          // Log the level-up
+          logger.info(`User ${user._id} leveled up to ${currentLevel + 1} with bonus ${levelUpSpaceRemaining}`);
+        }
       }
       // Increment the level
-      currentLevel += 1
+      currentLevel += 1;
     }
-    user.level = currentLevel
+    user.level = currentLevel;
 
     // Add the staking information to the staking array
     user.staking.push({
       userId: reward.userId,
-      createdAt: new Date()
-    })
+      createdAt: new Date(),
+    });
 
     // Save the updated user document
-    await user.save()
+    await user.save();
 
     // Log the successful staking update
-    logger.info(
-      `Staking rewards updated successfully for stakingId: ${stakingId}, userId: ${user._id}`
-    )
+    logger.info(`Staking rewards updated successfully for stakingId: ${stakingId}, userId: ${user._id}`);
 
-    res
-      .status(200)
-      .json({ message: 'Staking rewards updated successfully', user })
+    res.status(200).json({ message: 'Staking rewards updated successfully', user });
   } catch (err) {
     // Log any errors
-    logger.error(
-      `Error processing staking rewards for stakingId: ${stakingId} - ${err.message}`
-    )
-    next(err)
+    logger.error(`Error processing staking rewards for stakingId: ${stakingId} - ${err.message}`);
+    next(err);
   }
-}
+};
 
 const popularUser = async (req, res, next) => {
   try {
