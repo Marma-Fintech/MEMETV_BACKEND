@@ -5,6 +5,7 @@ const mongoose = require('mongoose')
 const { isValidObjectId } = mongoose
 const logger = require('../helpers/logger')
 const TOTALREWARDS_LIMIT = 21000000000
+// const TOTALREWARDS_LIMIT = 1000
 
 const levelUpBonuses = [
   // 500, Level 1 bonus, you reach 1000 its level2 you got level2 bonus points
@@ -21,7 +22,7 @@ const levelUpBonuses = [
 
 const thresholds = [
   { limit: 0, rewardPerSecond: 1, level: 1 },
-  { limit: 10000, rewardPerSecond: 2, level: 2 },
+  { limit: 600, rewardPerSecond: 2, level: 2 },
   { limit: 50000, rewardPerSecond: 3, level: 3 },
   { limit: 200000, rewardPerSecond: 4, level: 4 },
   { limit: 800000, rewardPerSecond: 5, level: 5 },
@@ -150,8 +151,7 @@ const userWatchRewards = async (req, res, next) => {
       )
     }
 
-    user.totalRewards += newRewards + parsedBoosterPoints
-
+    // Calculate the level-up bonus
     let newLevel = 1
     for (let i = thresholds.length - 1; i >= 0; i--) {
       if (user.totalRewards >= thresholds[i].limit) {
@@ -176,8 +176,22 @@ const userWatchRewards = async (req, res, next) => {
     )
 
     // Ensure totalRewards does not exceed the limit
+    const totalWithLevelUpBonus =
+      user.totalRewards + newRewards + parsedBoosterPoints + levelUpBonus
+
+    if (totalWithLevelUpBonus > TOTALREWARDS_LIMIT) {
+      const excessLevelUpBonus = totalWithLevelUpBonus - TOTALREWARDS_LIMIT
+
+      // Cap level-up bonus proportionally
+      if (levelUpBonus >= excessLevelUpBonus) {
+        levelUpBonus -= excessLevelUpBonus
+      } else {
+        levelUpBonus = 0
+      }
+    }
+
     user.totalRewards = Math.min(
-      user.totalRewards + levelUpBonus,
+      user.totalRewards + newRewards + parsedBoosterPoints + levelUpBonus,
       TOTALREWARDS_LIMIT
     )
 
@@ -229,13 +243,12 @@ const userWatchRewards = async (req, res, next) => {
 
     // Replicate today's watchRewards into voteDetails.votesCount
     const todayWatchRewards = newRewards + parsedBoosterPoints
-
     user.voteDetails.votesCount += todayWatchRewards
     logger.info(
       `voteDetails.votesCount updated by today's watchRewards for telegramId: ${telegramId}, votesCount: ${user.voteDetails.votesCount}`
     )
 
-    // **Find the voting record in Vote Model**
+    // Find the voting record in Vote Model
     const voteDate = new Date(user.voteDetails.voteDate)
     const votingTeamId = user.voteDetails.votingTeamId
 
@@ -245,17 +258,12 @@ const userWatchRewards = async (req, res, next) => {
     const endOfDay = new Date(voteDate)
     endOfDay.setUTCHours(23, 59, 59, 999)
 
-    // Query to find the vote record with the correct date and teamId
     const vote = await Vote.findOne({
-      date: {
-        $gte: startOfDay,
-        $lt: endOfDay
-      },
+      date: { $gte: startOfDay, $lt: endOfDay },
       'teams.teamId': votingTeamId
     })
 
     if (vote) {
-      // Find the correct team and update teamVotes
       const team = vote.teams.find(team => team.teamId === votingTeamId)
       if (team) {
         team.teamVotes = (parseFloat(team.teamVotes) || 0) + todayWatchRewards
@@ -263,7 +271,6 @@ const userWatchRewards = async (req, res, next) => {
           `teamVotes updated for teamId: ${votingTeamId} with additional votes: ${todayWatchRewards}`
         )
 
-        // Update the 'yourVotes' field in votersIds array for the specific user
         const voter = team.votersIds.find(
           voter => voter.telegramId === telegramId
         )
@@ -294,7 +301,6 @@ const userWatchRewards = async (req, res, next) => {
           user.boosters.splice(index, 1)
         }
       })
-
       logger.info(`Boosters updated for telegramId: ${telegramId}`)
     }
 
