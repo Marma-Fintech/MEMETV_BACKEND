@@ -1,6 +1,6 @@
 const User = require('../models/userModel')
 const logger = require('../helpers/logger')
-const TOTALREWARDS_LIMIT = 10000;
+const TOTALREWARDS_LIMIT = 21000000000
 
 // Function to generate a 5-character alphanumeric identifier
 const generateRefId = () => {
