@@ -5,7 +5,7 @@ const mongoose = require('mongoose')
 const { isValidObjectId } = mongoose
 const logger = require('../helpers/logger')
 const TOTALREWARDS_LIMIT = 21000000000
-// const TOTALREWARDS_LIMIT = 1000
+// const TOTALREWARDS_LIMIT = 1500
 
 const levelUpBonuses = [
   // 500, Level 1 bonus, you reach 1000 its level2 you got level2 bonus points
@@ -22,7 +22,7 @@ const levelUpBonuses = [
 
 const thresholds = [
   { limit: 0, rewardPerSecond: 1, level: 1 },
-  { limit: 600, rewardPerSecond: 2, level: 2 },
+  { limit: 10000, rewardPerSecond: 2, level: 2 },
   { limit: 50000, rewardPerSecond: 3, level: 3 },
   { limit: 200000, rewardPerSecond: 4, level: 4 },
   { limit: 800000, rewardPerSecond: 5, level: 5 },
@@ -39,7 +39,7 @@ const calculatePhase = (currentDate, startDate) => {
   const oneDay = 24 * 60 * 60 * 1000
   const daysDifference = Math.floor((currentDate - startDate) / oneDay)
   const phase = Math.floor(daysDifference / 7) + 1
-  return Math.min(phase) // Cap phase at 12
+  return Math.min(phase)
 }
 
 const userWatchRewards = async (req, res, next) => {
@@ -151,7 +151,8 @@ const userWatchRewards = async (req, res, next) => {
       )
     }
 
-    // Calculate the level-up bonus
+    user.totalRewards += newRewards + parsedBoosterPoints
+
     let newLevel = 1
     for (let i = thresholds.length - 1; i >= 0; i--) {
       if (user.totalRewards >= thresholds[i].limit) {
@@ -175,25 +176,16 @@ const userWatchRewards = async (req, res, next) => {
       `Level-up bonus calculated for telegramId: ${telegramId}, levelUpBonus: ${levelUpBonus}`
     )
 
-    // Ensure totalRewards does not exceed the limit
-    const totalWithLevelUpBonus =
-      user.totalRewards + newRewards + parsedBoosterPoints + levelUpBonus
+    // Ensure levelUpBonus does not push totalRewards beyond the limit
+    const potentialTotalRewardsAfterLevelUp = user.totalRewards + levelUpBonus
 
-    if (totalWithLevelUpBonus > TOTALREWARDS_LIMIT) {
-      const excessLevelUpBonus = totalWithLevelUpBonus - TOTALREWARDS_LIMIT
-
-      // Cap level-up bonus proportionally
-      if (levelUpBonus >= excessLevelUpBonus) {
-        levelUpBonus -= excessLevelUpBonus
-      } else {
-        levelUpBonus = 0
-      }
+    if (potentialTotalRewardsAfterLevelUp > TOTALREWARDS_LIMIT) {
+      const remainingSpace = TOTALREWARDS_LIMIT - user.totalRewards
+      levelUpBonus = Math.max(remainingSpace, 0) // Adjust the levelUpBonus to fit within the limit
     }
 
-    user.totalRewards = Math.min(
-      user.totalRewards + newRewards + parsedBoosterPoints + levelUpBonus,
-      TOTALREWARDS_LIMIT
-    )
+    // Add the capped levelUpBonus to totalRewards
+    user.totalRewards += levelUpBonus
 
     let dailyRewardAmount = newRewards + levelUpBonus + parsedBoosterPoints
 
@@ -243,12 +235,13 @@ const userWatchRewards = async (req, res, next) => {
 
     // Replicate today's watchRewards into voteDetails.votesCount
     const todayWatchRewards = newRewards + parsedBoosterPoints
+
     user.voteDetails.votesCount += todayWatchRewards
     logger.info(
       `voteDetails.votesCount updated by today's watchRewards for telegramId: ${telegramId}, votesCount: ${user.voteDetails.votesCount}`
     )
 
-    // Find the voting record in Vote Model
+    // **Find the voting record in Vote Model**
     const voteDate = new Date(user.voteDetails.voteDate)
     const votingTeamId = user.voteDetails.votingTeamId
 
@@ -258,12 +251,17 @@ const userWatchRewards = async (req, res, next) => {
     const endOfDay = new Date(voteDate)
     endOfDay.setUTCHours(23, 59, 59, 999)
 
+    // Query to find the vote record with the correct date and teamId
     const vote = await Vote.findOne({
-      date: { $gte: startOfDay, $lt: endOfDay },
+      date: {
+        $gte: startOfDay,
+        $lt: endOfDay
+      },
       'teams.teamId': votingTeamId
     })
 
     if (vote) {
+      // Find the correct team and update teamVotes
       const team = vote.teams.find(team => team.teamId === votingTeamId)
       if (team) {
         team.teamVotes = (parseFloat(team.teamVotes) || 0) + todayWatchRewards
@@ -271,6 +269,7 @@ const userWatchRewards = async (req, res, next) => {
           `teamVotes updated for teamId: ${votingTeamId} with additional votes: ${todayWatchRewards}`
         )
 
+        // Update the 'yourVotes' field in votersIds array for the specific user
         const voter = team.votersIds.find(
           voter => voter.telegramId === telegramId
         )
@@ -301,16 +300,14 @@ const userWatchRewards = async (req, res, next) => {
           user.boosters.splice(index, 1)
         }
       })
+
       logger.info(`Boosters updated for telegramId: ${telegramId}`)
     }
 
     await user.save()
 
-    logger.info(
-      `Rewards, level, and vote details updated successfully for telegramId: ${telegramId}`
-    )
-
-    res.status(200).json({
+    logger.info(`User rewards updated and saved for telegramId: ${telegramId}`)
+    return res.status(200).json({
       message: 'Rewards, level, and vote details updated successfully',
       name: user.name,
       telegramId: user.telegramId,
@@ -333,11 +330,11 @@ const userWatchRewards = async (req, res, next) => {
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     })
-  } catch (err) {
+  } catch (error) {
     logger.error(
-      `Error processing rewards for telegramId: ${telegramId} - ${err.message}`
+      `Error processing watch rewards for telegramId: ${telegramId}: ${error.message}`
     )
-    next(err)
+    return res.status(500).json({ message: 'Internal Server Error' })
   }
 }
 
@@ -515,7 +512,7 @@ const stakingRewards = async (req, res, next) => {
 
     // Calculate the additional reward and ensure it fits within the available space
     const additionalReward = reward.totalRewards
-    const spaceRemaining = Math.min(additionalReward, availableSpace) // Limit to available space
+    const spaceRemaining = Math.min(additionalReward, availableSpace)
 
     if (spaceRemaining <= 0) {
       logger.warn(`No available space to add staking rewards.`)
@@ -538,13 +535,10 @@ const stakingRewards = async (req, res, next) => {
     )
     user.stakingRewards += spaceRemaining
 
-    // Log the reward update
-    logger.info(
-      `Doubled rewards for stakingId: ${stakingId}, added ${spaceRemaining} to user ${user._id}`
-    )
-
     // Check for level-up bonuses and update the user's level
     let currentLevel = user.level
+    let levelUpBonusTotal = 0 // Track level-up bonuses for dailyRewards
+
     while (
       currentLevel < thresholds.length &&
       user.totalRewards >= thresholds[currentLevel].limit
@@ -563,6 +557,7 @@ const stakingRewards = async (req, res, next) => {
         if (levelUpSpaceRemaining > 0) {
           user.totalRewards += levelUpSpaceRemaining
           user.levelUpRewards += levelUpSpaceRemaining
+          levelUpBonusTotal += levelUpSpaceRemaining
 
           // Log the level-up
           logger.info(
@@ -576,6 +571,14 @@ const stakingRewards = async (req, res, next) => {
       currentLevel += 1
     }
     user.level = currentLevel
+
+    // Update dailyRewards.totalRewards with levelUpRewards
+    if (levelUpBonusTotal > 0) {
+      reward.totalRewards += levelUpBonusTotal
+      logger.info(
+        `Added levelUpBonus ${levelUpBonusTotal} to dailyRewards.totalRewards for stakingId: ${stakingId}`
+      )
+    }
 
     // Add the staking information to the staking array
     user.staking.push({
