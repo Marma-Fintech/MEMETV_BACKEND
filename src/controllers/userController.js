@@ -38,7 +38,7 @@ const thresholds = [
   { limit: 80000000, level: 10 }
 ]
 
-const userEndDate = new Date('2025-02-2')
+const userEndDate = new Date('2025-02-26')
 
 const updateLevel = (user, currentDateString) => {
   const currentDate = new Date(currentDateString)
