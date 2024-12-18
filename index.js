@@ -18,7 +18,7 @@ const rateLimit = require('express-rate-limit')
 const { createProxyMiddleware } = require('http-proxy-middleware')
 if (cluster.isMaster) {
   const token = process.env.TELEGRAM_TOKEN
-  const bot = new TelegramBot(token,{polling:true})
+  const bot = new TelegramBot(token,{polling: true})
 
   // Handle the /start command from Telegram
   bot.onText(/\/start(?:\s+(\w+))?/, (msg, match) => {
@@ -35,7 +35,7 @@ if (cluster.isMaster) {
               {
                 text: '#doNothing',
                 web_app: {
-                  url: `https://reliable-centaur-39a69a.netlify.app/?start=${referredId}`
+                  url: `https://zippy-smakager-45b1ee.netlify.app/?start=${referredId}`
                 }
               }
             ]

@@ -4,8 +4,6 @@ const Quiz = require('../models/userQuestions')
 const mongoose = require('mongoose')
 const { isValidObjectId } = mongoose
 const logger = require('../helpers/logger')
-const TOTALREWARDS_LIMIT = 21000000000
-// const TOTALREWARDS_LIMIT = 1500
 
 const levelUpBonuses = [
   // 500, Level 1 bonus, you reach 1000 its level2 you got level2 bonus points
@@ -33,13 +31,16 @@ const thresholds = [
   { limit: 80000000, rewardPerSecond: 10, level: 10 }
 ]
 
+const userEndDate = new Date('2025-02-26')
+
+
 const startDate = new Date('2024-12-03') // Project start date
 
 const calculatePhase = (currentDate, startDate) => {
   const oneDay = 24 * 60 * 60 * 1000
   const daysDifference = Math.floor((currentDate - startDate) / oneDay)
   const phase = Math.floor(daysDifference / 7) + 1
-  return Math.min(phase)
+  return Math.min(phase, 12) // Cap phase at 12
 }
 
 const userWatchRewards = async (req, res, next) => {
@@ -69,25 +70,17 @@ const userWatchRewards = async (req, res, next) => {
 
     logger.info(`User found for telegramId: ${telegramId}`)
 
-    // Calculate the total rewards across all users
-    const totalRewardsInSystem = await User.aggregate([
-      { $group: { _id: null, total: { $sum: '$totalRewards' } } }
-    ])
-
-    const totalRewardsUsed = totalRewardsInSystem[0]
-      ? totalRewardsInSystem[0].total
-      : 0
-    const availableSpace = TOTALREWARDS_LIMIT - totalRewardsUsed
-
-    if (availableSpace <= 0) {
-      logger.warn(
-        `The total rewards limit of ${TOTALREWARDS_LIMIT} has been reached.`
-      )
+    // Check if the current date is past the userEndDate
+    if (now > user.userEndDate) {
+      logger.warn(`User has reached the end date for telegramId: ${telegramId}`)
       return res.status(403).json({
-        message: `Total rewards limit of ${TOTALREWARDS_LIMIT} exceeded across all users.`
+        message:
+          'User has reached the end date. No rewards or boosters can be processed.',
+        user
       })
     }
 
+    // Watch rewards and level-up logic (unchanged from your current logic)
     let remainingSeconds = userWatchSeconds
     let newRewards = 0
     let currentTotalRewards = user.totalRewards
@@ -128,29 +121,6 @@ const userWatchRewards = async (req, res, next) => {
     )
 
     const parsedBoosterPoints = parseFloat(boosterPoints)
-
-    // Check totalRewards limit
-    const potentialTotalRewards =
-      user.totalRewards + newRewards + parsedBoosterPoints
-
-    if (potentialTotalRewards > TOTALREWARDS_LIMIT) {
-      const excess = potentialTotalRewards - TOTALREWARDS_LIMIT
-
-      // Reduce rewards proportionally
-      if (newRewards >= excess) {
-        newRewards -= excess
-      } else if (parsedBoosterPoints >= excess) {
-        parsedBoosterPoints -= excess
-      } else {
-        newRewards = 0
-        parsedBoosterPoints = 0
-      }
-
-      logger.warn(
-        `Rewards capped for telegramId: ${telegramId}. Max totalRewards limit: ${TOTALREWARDS_LIMIT}`
-      )
-    }
-
     user.totalRewards += newRewards + parsedBoosterPoints
 
     let newLevel = 1
@@ -176,15 +146,7 @@ const userWatchRewards = async (req, res, next) => {
       `Level-up bonus calculated for telegramId: ${telegramId}, levelUpBonus: ${levelUpBonus}`
     )
 
-    // Ensure levelUpBonus does not push totalRewards beyond the limit
-    const potentialTotalRewardsAfterLevelUp = user.totalRewards + levelUpBonus
-
-    if (potentialTotalRewardsAfterLevelUp > TOTALREWARDS_LIMIT) {
-      const remainingSpace = TOTALREWARDS_LIMIT - user.totalRewards
-      levelUpBonus = Math.max(remainingSpace, 0) // Adjust the levelUpBonus to fit within the limit
-    }
-
-    // Add the capped levelUpBonus to totalRewards
+    user.level = newLevel
     user.totalRewards += levelUpBonus
 
     let dailyRewardAmount = newRewards + levelUpBonus + parsedBoosterPoints
@@ -211,15 +173,12 @@ const userWatchRewards = async (req, res, next) => {
     )
 
     if (dailyReward) {
-      dailyReward.totalRewards = Math.min(
-        dailyReward.totalRewards + dailyRewardAmount,
-        TOTALREWARDS_LIMIT
-      )
+      dailyReward.totalRewards += dailyRewardAmount
     } else {
       user.dailyRewards.push({
         userId: user._id,
         telegramId: user.telegramId,
-        totalRewards: Math.min(dailyRewardAmount, TOTALREWARDS_LIMIT),
+        totalRewards: dailyRewardAmount,
         createdAt: new Date()
       })
     }
@@ -236,7 +195,9 @@ const userWatchRewards = async (req, res, next) => {
     // Replicate today's watchRewards into voteDetails.votesCount
     const todayWatchRewards = newRewards + parsedBoosterPoints
 
+    // Add today's watchRewards to votesCount
     user.voteDetails.votesCount += todayWatchRewards
+
     logger.info(
       `voteDetails.votesCount updated by today's watchRewards for telegramId: ${telegramId}, votesCount: ${user.voteDetails.votesCount}`
     )
@@ -292,7 +253,6 @@ const userWatchRewards = async (req, res, next) => {
       )
     }
 
-    // Update boosters logic (unchanged)
     if (boosters && boosters.length > 0) {
       boosters.forEach(booster => {
         const index = user.boosters.indexOf(booster)
@@ -306,8 +266,11 @@ const userWatchRewards = async (req, res, next) => {
 
     await user.save()
 
-    logger.info(`User rewards updated and saved for telegramId: ${telegramId}`)
-    return res.status(200).json({
+    logger.info(
+      `Rewards, level, and vote details updated successfully for telegramId: ${telegramId}`
+    )
+
+    res.status(200).json({
       message: 'Rewards, level, and vote details updated successfully',
       name: user.name,
       telegramId: user.telegramId,
@@ -325,16 +288,16 @@ const userWatchRewards = async (req, res, next) => {
       lastLogin: user.lastLogin,
       yourReferenceIds: user.yourReferenceIds,
       staking: user.staking,
-      voteDetails: user.voteDetails,
-      currentPhase: currentPhase,
+      voteDetails: user.voteDetails, // Include updated voteDetails in the response,
+      currentPhase: currentPhase,// Add the calculated phase
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     })
-  } catch (error) {
+  } catch (err) {
     logger.error(
-      `Error processing watch rewards for telegramId: ${telegramId}: ${error.message}`
+      `Error processing rewards for telegramId: ${telegramId} - ${err.message}`
     )
-    return res.status(500).json({ message: 'Internal Server Error' })
+    next(err)
   }
 }
 
@@ -397,6 +360,17 @@ const purchaseBooster = async (req, res, next) => {
     if (!user) {
       logger.warn(`User not found for telegramId: ${telegramId}`)
       return res.status(404).json({ message: 'User not found' })
+    }
+
+    // Check if the current date is past the userEndDate
+    if (now > userEndDate) {
+      logger.info(
+        `Attempted purchase after userEndDate for telegramId: ${telegramId}`
+      )
+      return res.status(403).json({
+        message: 'User has reached the end date. No purchases can be made.',
+        user
+      })
     }
 
     // Check if the user has enough boosterPoints available in totalRewards
@@ -475,7 +449,9 @@ const stakingRewards = async (req, res, next) => {
     }
 
     // Find the user with the matching stakingId in dailyRewards array
-    const user = await User.findOne({ 'dailyRewards._id': stakingId })
+    const user = await User.findOne({
+      'dailyRewards._id': stakingId
+    })
 
     if (!user) {
       logger.warn(`User not found for stakingId: ${stakingId}`)
@@ -490,55 +466,27 @@ const stakingRewards = async (req, res, next) => {
       return res.status(400).json({ message: 'User has already staked' })
     }
 
-    // Calculate the total rewards used across all users
-    const totalRewardsInSystem = await User.aggregate([
-      { $group: { _id: null, total: { $sum: '$totalRewards' } } }
-    ])
-
-    const totalRewardsUsed = totalRewardsInSystem[0]
-      ? totalRewardsInSystem[0].total
-      : 0
-
-    const availableSpace = TOTALREWARDS_LIMIT - totalRewardsUsed
-
-    if (availableSpace <= 0) {
-      logger.warn(
-        `The total rewards limit of ${TOTALREWARDS_LIMIT} has been reached.`
-      )
-      return res.status(403).json({
-        message: `Total rewards limit of ${TOTALREWARDS_LIMIT} exceeded across all users.`
-      })
-    }
-
-    // Calculate the additional reward and ensure it fits within the available space
+    // Calculate the additional reward
     const additionalReward = reward.totalRewards
-    const spaceRemaining = Math.min(additionalReward, availableSpace)
 
-    if (spaceRemaining <= 0) {
-      logger.warn(`No available space to add staking rewards.`)
-      return res.status(403).json({
-        message: `Staking rewards cannot be added as the total rewards limit has been reached.`
-      })
-    }
-
-    // Double the total reward (limited by available space)
-    const doubledReward = reward.totalRewards + spaceRemaining
+    // Double the total reward
+    const doubledReward = reward.totalRewards * 2
 
     // Update the totalRewards and userStaking in the dailyRewards array
     reward.totalRewards = doubledReward
     reward.userStaking = true
 
     // Update the user's totalRewards and stakingRewards
-    user.totalRewards = Math.min(
-      user.totalRewards + spaceRemaining,
-      TOTALREWARDS_LIMIT
+    user.totalRewards += additionalReward // Only add the extra amount to totalRewards
+    user.stakingRewards += additionalReward // Add the same extra amount to stakingRewards
+
+    // Log the reward update
+    logger.info(
+      `Doubled rewards for stakingId: ${stakingId}, added ${additionalReward} to user ${user._id}`
     )
-    user.stakingRewards += spaceRemaining
 
     // Check for level-up bonuses and update the user's level
     let currentLevel = user.level
-    let levelUpBonusTotal = 0 // Track level-up bonuses for dailyRewards
-
     while (
       currentLevel < thresholds.length &&
       user.totalRewards >= thresholds[currentLevel].limit
@@ -549,36 +497,20 @@ const stakingRewards = async (req, res, next) => {
         user.totalRewards >= thresholds[currentLevel].limit
       ) {
         const levelUpBonus = levelUpBonuses[currentLevel - 1]
-        const levelUpSpaceRemaining = Math.min(
-          levelUpBonus,
-          TOTALREWARDS_LIMIT - user.totalRewards
+        user.totalRewards += levelUpBonus
+        user.levelUpRewards += levelUpBonus
+
+        // Log the level-up
+        logger.info(
+          `User ${user._id} leveled up to ${
+            currentLevel + 1
+          } with bonus ${levelUpBonus}`
         )
-
-        if (levelUpSpaceRemaining > 0) {
-          user.totalRewards += levelUpSpaceRemaining
-          user.levelUpRewards += levelUpSpaceRemaining
-          levelUpBonusTotal += levelUpSpaceRemaining
-
-          // Log the level-up
-          logger.info(
-            `User ${user._id} leveled up to ${
-              currentLevel + 1
-            } with bonus ${levelUpSpaceRemaining}`
-          )
-        }
       }
       // Increment the level
       currentLevel += 1
     }
     user.level = currentLevel
-
-    // Update dailyRewards.totalRewards with levelUpRewards
-    if (levelUpBonusTotal > 0) {
-      reward.totalRewards += levelUpBonusTotal
-      logger.info(
-        `Added levelUpBonus ${levelUpBonusTotal} to dailyRewards.totalRewards for stakingId: ${stakingId}`
-      )
-    }
 
     // Add the staking information to the staking array
     user.staking.push({
