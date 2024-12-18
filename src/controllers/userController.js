@@ -2,6 +2,7 @@ const User = require('../models/userModel')
 const logger = require('../helpers/logger')
 const TOTALREWARDS_LIMIT = 21000000000
 
+
 // Function to generate a 5-character alphanumeric identifier
 const generateRefId = () => {
   const characters =
@@ -185,8 +186,15 @@ const login = async (req, res, next) => {
       if (referringUser) {
         referringUser.yourReferenceIds.push({ userId: user._id })
 
-        referringUser.totalRewards += 10000
-        referringUser.referRewards += 10000
+        // Calculate total referring rewards while considering the limit
+        const totalReferringRewards = referringUser.totalRewards + 100
+        if (totalReferringRewards <= TOTALREWARDS_LIMIT) {
+          referringUser.totalRewards += 100
+          referringUser.referRewards += 100
+        } else {
+          referringUser.totalRewards = TOTALREWARDS_LIMIT
+          referringUser.referRewards = TOTALREWARDS_LIMIT
+        }
 
         const today = new Date()
         today.setUTCHours(0, 0, 0, 0)
@@ -197,19 +205,20 @@ const login = async (req, res, next) => {
         })
 
         if (dailyReward) {
-          dailyReward.totalRewards += 10000
+          dailyReward.totalRewards += 100
         } else {
           referringUser.dailyRewards.push({
             userId: referringUser._id,
             telegramId: referringUser.telegramId,
-            totalRewards: 10000,
+            totalRewards: 100,
             createdAt: currentDate
           })
         }
 
+        // Handle milestone rewards for referringUser
         const numberOfReferrals = referringUser.yourReferenceIds.length
         const milestones = [
-          { referrals: 3, reward: 20000 },
+          { referrals: 3, reward: 20 },
           { referrals: 5, reward: 33333 },
           { referrals: 10, reward: 66667 },
           { referrals: 15, reward: 100000 },
@@ -240,19 +249,26 @@ const login = async (req, res, next) => {
           }
         }
 
-        if (milestoneReward > 0) {
+        // Capping milestone rewards within TOTALREWARDS_LIMIT
+        const totalMilestoneRewards = referringUser.totalRewards + milestoneReward
+        if (totalMilestoneRewards <= TOTALREWARDS_LIMIT) {
           referringUser.totalRewards += milestoneReward
           referringUser.referRewards += milestoneReward
-          if (dailyReward) {
-            dailyReward.totalRewards += milestoneReward
-          } else {
-            referringUser.dailyRewards.push({
-              userId: referringUser._id,
-              telegramId: referringUser.telegramId,
-              totalRewards: milestoneReward,
-              createdAt: currentDate
-            })
-          }
+        } else {
+          const remainingSpace = TOTALREWARDS_LIMIT - referringUser.totalRewards
+          referringUser.totalRewards += remainingSpace
+          referringUser.referRewards += remainingSpace
+        }
+
+        if (dailyReward) {
+          dailyReward.totalRewards += milestoneReward
+        } else {
+          referringUser.dailyRewards.push({
+            userId: referringUser._id,
+            telegramId: referringUser.telegramId,
+            totalRewards: milestoneReward,
+            createdAt: currentDate
+          })
         }
 
         referringUser.boosters.push('2x', '2x', '2x', '2x', '2x')
@@ -273,23 +289,56 @@ const login = async (req, res, next) => {
       ) {
         user.boosters.push('levelUp')
       }
+      
+      // Capping levelUpRewards within TOTALREWARDS_LIMIT
+      if (user.levelUpRewards <= TOTALREWARDS_LIMIT - user.totalRewards) {
+        user.totalRewards += user.levelUpRewards
+      } else {
+        user.totalRewards = TOTALREWARDS_LIMIT
+      }
+
       user.lastLogin = currentDate
       await user.save()
     }
 
+    // Update user level based on current data
     updateLevel(user, currentDate.toISOString().split('T')[0])
+
+    // Calculate the total rewards across all users
+    const totalRewardsInSystem = await User.aggregate([
+      { $group: { _id: null, total: { $sum: '$totalRewards' } } }
+    ])
+
+    const totalRewardsUsed = totalRewardsInSystem[0]
+      ? totalRewardsInSystem[0].total
+      : 0
+    const availableSpace = TOTALREWARDS_LIMIT - totalRewardsUsed
+
+    if (availableSpace <= 0) {
+      logger.warn(
+        `The total rewards limit of ${TOTALREWARDS_LIMIT} has been reached.`
+      )
+      return res.status(403).json({
+        message: `Total rewards limit of ${TOTALREWARDS_LIMIT} exceeded across all users.`
+      })
+    }
+
     res.status(201).json({
       message: `User logged in successfully`,
       user,
-      currentPhase // Include the currentPhase in the response
+      currentPhase, // Include the currentPhase in the response
+      totalRewardsUsed, // Add total rewards used across the system
+      availableSpace // Show the available rewards space
     })
   } catch (err) {
     logger.error(
-      `Error processing task rewards for user with telegramId: ${req.body.telegramId} - ${err.message}`
+      `Error processing login for user with telegramId: ${req.body.telegramId} - ${err.message}`
     )
     next(err)
   }
 }
+
+
 
 const userDetails = async (req, res, next) => {
   try {
